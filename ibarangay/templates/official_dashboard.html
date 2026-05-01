@@ -1,0 +1,652 @@
+{% extends 'base.html' %}
+{% block content %}
+<div id="tab-home" class="tab-section active">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 2;">
+            <h3>Community News Feed 📰</h3>
+            <div id="news-feed-box" style="margin-top:15px; padding-right:10px;">
+                <p class="text-muted">Loading feed...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-members" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 2;">
+            <h3>Barangay Member Directory 👥</h3>
+            <p class="text-muted">Full internal directory of barangay members.</p>
+            <div id="members-list" style="margin-top:15px; display:grid; gap:10px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));"></div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-welfare" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                <div>
+                    <h3>Welfare Distribution Module</h3>
+                    <p class="text-muted" style="font-size:13px; margin:0;">Record assistance for residents and keep release status visible for the barangay team.</p>
+                </div>
+                <span class="search-chip">Official Access</span>
+            </div>
+            <input type="hidden" id="welfare-record-id">
+            <div style="margin-top:15px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <label style="font-size:13px; color:var(--text-muted); font-weight:700;">Beneficiaries</label>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                        <small id="welfare-selected-count" class="text-muted">0 selected</small>
+                        <button type="button" class="btn btn-secondary" style="padding:6px 10px; font-size:11px;" onclick="window.selectAllVisibleWelfareResidents && window.selectAllVisibleWelfareResidents()">Select Visible</button>
+                        <button type="button" class="btn btn-secondary" style="padding:6px 10px; font-size:11px;" onclick="window.clearWelfareResidentSelection && window.clearWelfareResidentSelection()">Clear</button>
+                    </div>
+                </div>
+                <input type="text" id="welfare-resident-search" class="input-field" placeholder="Search residents to add multiple beneficiaries..." oninput="window.renderWelfareResidentPicker && window.renderWelfareResidentPicker()">
+                <div id="welfare-resident-preview" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;"></div>
+                <div id="welfare-resident-options" style="margin-top:10px; max-height:220px; overflow-y:auto; display:grid; gap:8px;"></div>
+                <small class="text-muted" style="display:block; margin-top:8px;">One submit creates one welfare record per selected beneficiary using the same assistance details.</small>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <input type="text" id="welfare-type" class="input-field" placeholder="Assistance Type (e.g. Food Pack)" style="flex:1; min-width:180px;">
+                <input type="text" id="welfare-program" class="input-field" placeholder="Program / Batch Name" style="flex:1; min-width:180px;">
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <input type="number" id="welfare-amount" class="input-field" placeholder="Amount (PHP)" min="0" step="0.01" style="flex:1; min-width:150px;">
+                <input type="number" id="welfare-quantity" class="input-field" placeholder="Quantity" min="0" step="0.1" style="flex:1; min-width:120px;">
+                <input type="text" id="welfare-unit" class="input-field" placeholder="Unit (packs, kg, etc.)" style="flex:1; min-width:150px;">
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <select id="welfare-status" class="input-field" style="flex:1; min-width:150px;">
+                    <option value="planned">Planned</option>
+                    <option value="approved">Approved</option>
+                    <option value="released">Released</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+                <input type="date" id="welfare-date" class="input-field" style="flex:1; min-width:150px;">
+                <input type="text" id="welfare-source" class="input-field" placeholder="Source of Funds" style="flex:1; min-width:160px;">
+            </div>
+            <input type="text" id="welfare-reference" class="input-field" placeholder="Reference Code (optional)">
+            <textarea id="welfare-notes" class="input-field" placeholder="Notes, release remarks, or beneficiary details..." rows="4"></textarea>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn btn-primary" style="flex:1;" onclick="window.saveWelfareDistribution && window.saveWelfareDistribution()">Save Welfare Record</button>
+                <button class="btn btn-secondary" style="flex:1;" onclick="window.resetWelfareForm && window.resetWelfareForm()">Clear Form</button>
+            </div>
+        </div>
+        <div class="glass-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                <div>
+                    <h3>Distribution Tracker</h3>
+                    <p class="text-muted" style="font-size:13px; margin:0;">Review upcoming releases, completed distributions, and beneficiary coverage.</p>
+                </div>
+                <button class="btn btn-secondary" style="padding:8px 12px;" onclick="window.loadWelfareModule && window.loadWelfareModule(true)">Refresh</button>
+            </div>
+            <div id="welfare-summary-box" style="margin-top:15px;"></div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:15px;">
+                <input type="text" id="welfare-search" class="input-field" placeholder="Search resident, type, or reference..." style="flex:1; min-width:200px; margin:0;" oninput="window.renderWelfareRecords && window.renderWelfareRecords()">
+                <select id="welfare-filter-status" class="input-field" style="min-width:170px; margin:0;" onchange="window.renderWelfareRecords && window.renderWelfareRecords()">
+                    <option value="">All statuses</option>
+                </select>
+            </div>
+            <div id="welfare-records-box" style="margin-top:15px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-report" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 2;">
+            <h2>Barangay Official Dashboard - Emergencies</h2>
+            <p class="text-muted">Report active incidents to fellow BIOs and officials, then keep this window open to receive emergency notifications in the background.</p>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn btn-danger" style="flex:1" onclick="triggerEmergency('accident')">⚠️ Report Accident</button>
+                <button class="btn btn-danger" style="flex:1; background:#f43f5e" onclick="triggerEmergency('health')">❤️ Report Health Issue</button>
+            </div>
+            <hr style="border:0; border-top: 1px solid var(--card-border); margin: 20px 0;">
+            <h3>Pending Emergency Alerts 🚨</h3>
+            <button class="btn btn-warning" onclick="refreshEmergencyPanels()">Refresh Emergencies</button>
+            <div id="emg-box" style="margin-top: 15px;"></div>
+
+            <h3 style="margin-top:30px;">Previously Acknowledged Emergencies</h3>
+            <div id="emg-history-box" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-officials" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 2;">
+            <h3 style="color:var(--primary)">Barangay Officials 👔</h3>
+            <button class="btn btn-secondary" style="padding:8px 12px; margin-bottom:10px;" onclick="openRatingSummary()">View Vote Summary</button>
+            <p class="text-muted" style="font-size:14px; margin-bottom:15px;">Evaluate fellow performance internally. Processed by AI.</p>
+            <div id="officials-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-notification" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 2;">
+            <h2 style="color:var(--warning)">Summon Resident (Patawag) 🗣️</h2>
+            <p class="text-muted">Issue a mandatory summons to a specific resident to visit the hall.</p>
+            <input type="number" id="sum-user" class="input-field" placeholder="Resident User ID (e.g. 1)">
+            <textarea id="sum-reason" class="input-field" placeholder="Reason for Patawag" rows="3"></textarea>
+            <button class="btn btn-danger" onclick="sendSummon()">Issue Summons</button>
+        </div>
+    </div>
+</div>
+
+<div id="tab-maps" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 2;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <h3>Barangay Map & Residents Location 🗺️</h3>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-secondary" style="background:var(--secondary); color:#fff; padding: 5px 15px; font-size:12px;" onclick="toggleAIHotspots('health')">
+                        <i class="fa-solid fa-heart-pulse"></i> Health AI
+                    </button>
+                    <button class="btn btn-secondary" style="background:var(--danger); color:#fff; padding: 5px 15px; font-size:12px;" onclick="toggleAIHotspots()">
+                        <i class="fa-solid fa-brain"></i> All AI Analysis
+                    </button>
+                </div>
+            </div>
+            <p class="text-muted">Full administrative view of houses and living status (Not limited). The AI component highlights recurring incident patterns and potential community health risks.</p>
+            <div id="ai-insight-box" style="display:none; background:rgba(239, 68, 68, 0.1); border:1px solid var(--danger); padding:10px; border-radius:10px; margin-bottom:10px; font-size:14px; color:var(--text-light); animation: fadeIn 0.5s ease;"></div>
+            <div id="ai-analysis-details" class="ai-analysis-panel" style="display:none;"></div>
+            <div id="off-map" style="width: 100%; height: 400px; background: rgba(0,0,0,0.2); border-radius: 10px; border: 1px dashed var(--card-border); z-index:0;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-history" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 2;">
+            <h3>Activity History Log 🕒</h3>
+            <p class="text-muted">Master record of your systemic actions.</p>
+            <div id="history-box" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="emg-map-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; padding:20px;">
+    <div class="glass-card" style="max-width:600px; margin: 40px auto; position:relative;">
+        <button class="btn" style="position:absolute; right:10px; top:10px; background:var(--danger); z-index:1000;" onclick="document.getElementById('emg-map-modal').style.display='none'">X</button>
+        <h3 id="emg-map-title">Emergency Location</h3>
+        <p id="emg-map-subtitle" class="text-muted"></p>
+        <div id="emg-pin-map" style="width: 100%; height: 300px; background: rgba(0,0,0,0.2); border-radius: 10px; border: 1px dashed var(--secondary); z-index:0;"></div>
+    </div>
+</div>
+
+<script>
+    const officialTabState = {
+        homeLoaded: false,
+        membersLoaded: false,
+        welfareLoaded: false,
+        officialsLoaded: false,
+        reportLoaded: false,
+        historyLoaded: false,
+        mapLoaded: false
+    };
+
+    async function triggerEmergency(type) {
+        const result = await window.submitEmergencyReport(type, {
+            successMessage: 'Emergency alert sent to fellow barangay staff.',
+            fallbackMessage: 'Location is unavailable right now. Allow location access or update your saved house coordinates, then try again.'
+        });
+        if (!result?.success) return;
+        await refreshEmergencyPanels();
+    }
+
+    async function refreshEmergencyPanels() {
+        await Promise.all([loadEmergencies(), loadEmgHistory()]);
+    }
+
+    async function loadEmergencies() {
+        const box = document.getElementById('emg-box');
+        if (box) box.innerHTML = '<p class="text-muted">Loading emergencies...</p>';
+
+        try {
+            const res = await fetch('/api/emergency', {
+                cache: 'no-store',
+                headers: { 'Cache-Control': 'no-cache' }
+            });
+            if (!res.ok) throw new Error('Unable to load emergencies.');
+
+            const payload = await res.json();
+            const data = Array.isArray(payload) ? payload : [];
+            let html = '';
+
+            data.forEach(e => {
+                html += `<div style="border:1px solid var(--danger); padding:10px; border-radius:8px; margin-bottom:10px; background:rgba(239, 68, 68, 0.1);">
+                    <strong>🚨 ${e.type.toUpperCase()} EMERGENCY</strong><br/>
+                    Reported By: <b>${e.reported_by_name}</b><br/>
+                    Purok: ${e.purok}<br/>
+                    Time: ${formatPhilippineDateTime(e.timestamp)}<br/>
+                    <div style="display:flex; gap:10px; margin-top:10px;">
+                        <button class="btn btn-primary" style="padding: 5px 10px;" onclick="ackEmergency(${e.id})">Acknowledge</button>
+                        <button class="btn btn-secondary" style="padding: 5px 10px;" onclick="viewEmergencyMap(${e.lat}, ${e.lng}, '${e.type}', '${e.reported_by_name.replace(/'/g, '\\\'')}')">View Map</button>
+                    </div>
+                </div>`;
+            });
+
+            if (box) box.innerHTML = html || 'No unacknowledged emergencies.';
+        } catch (error) {
+            if (box) box.innerHTML = '<p class="text-danger">Unable to load emergencies right now.</p>';
+        }
+    }
+
+    async function ackEmergency(id) {
+        const res = await fetch('/api/emergency/ack', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id })
+        });
+        if (!res.ok) {
+            alert('Unable to acknowledge the emergency right now.');
+            return;
+        }
+        await refreshEmergencyPanels();
+    }
+    async function sendSummon() {
+        const uid = document.getElementById('sum-user').value;
+        const reason = document.getElementById('sum-reason').value;
+        if (!uid || !reason) return alert("Fill all fields.");
+        await fetch('/api/summons', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ resident_id: uid, reason: reason }) });
+        alert('Summons recorded. The resident will be alerted on their dashboard.');
+        document.getElementById('sum-user').value = '';
+        document.getElementById('sum-reason').value = '';
+    }
+
+
+    async function loadNewsFeed() {
+        try {
+            const res = await fetch('/api/posts');
+            if (!res.ok) throw new Error('Failed to load posts');
+            const query = (window.NAV_SEARCH_QUERY || '').toLowerCase();
+            const posts = (await res.json()).filter(p => window.postMatchesSearch(p, query));
+            let html = '';
+            posts.forEach(p => {
+                const mentionsHtml = Array.isArray(p.mentions) && p.mentions.length > 0
+                    ? p.mentions.map(m => `<span class="mention-tag">@${typeof m === 'string' ? m : (m.name || '')}</span>`).join(' ')
+                    : '';
+                const locationHtml = p.location ? `<small style="color:var(--secondary); display:block; margin-top:4px;"><i class="fa-solid fa-location-dot"></i> ${p.location}</small>` : '';
+                const authorPosition = p.author_position || ((p.author_role === 'bio' || p.author_role === 'official') ? 'Barangay Official' : '');
+                let mediaHtml = '';
+                if (Array.isArray(p.media_urls) && p.media_urls.length > 0) {
+                    mediaHtml = `<div class="post-media-grid" style="grid-template-columns: repeat(${p.media_urls.length > 1 ? 2 : 1}, 1fr);">
+                        ${p.media_urls.map(m => {
+                            const mediaUrl = typeof m === 'string' ? m : m.url;
+                            const isVideo = typeof m === 'object' ? m.type === 'video' : /\.(mp4|webm|ogg)$/i.test(mediaUrl || '');
+                            return isVideo
+                                ? `<video src="${mediaUrl}" controls style="width:100%; border-radius:10px;" preload="metadata"></video>`
+                                : `<img src="${mediaUrl}" style="width:100%; border-radius:10px;" loading="lazy">`;
+                        }).join('')}
+                    </div>`;
+                } else if (p.image_url) {
+                    mediaHtml = `<img src="${p.image_url}" style="width:100%; border-radius:10px; margin-top:10px;" onclick="window.open(this.src)" loading="lazy">`;
+                }
+
+                html += `<div class="glass-card" style="margin-bottom:20px; padding:20px; animation: fadeIn 0.4s ease;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <img src="${p.author_pic || '/static/default-avatar.svg'}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;" loading="lazy">
+                            <div>
+                                <b style="font-size:15px; display:block;">${p.author_name}</b>
+                                ${authorPosition ? `<small style="color:var(--primary); font-size:11px; font-weight:800; display:block; margin-top:2px;">${authorPosition}</small>` : ''}
+                                <small style="color:var(--text-muted); font-size:11px;">${formatPhilippineDateTime(p.timestamp)}</small>
+                            </div>
+                        </div>
+                    </div>
+                    <p style="margin:0; font-size:15px; line-height:1.6; white-space: pre-wrap; color:var(--text-light);">${p.content} ${mentionsHtml}</p>
+                    ${locationHtml}
+                    ${mediaHtml}
+                    <div style="margin-top:15px; display:flex; gap:20px; align-items:center; border-top:1px solid rgba(255,255,255,0.05); padding-top:10px;">
+                        <div style="cursor:pointer; display:flex; align-items:center; gap:6px; font-size:18px;" onclick="toggleLike(${p.id})">
+                            <i class="${p.is_liked ? 'fa-solid fa-heart' : 'fa-regular fa-heart'}" style="color:${p.is_liked ? '#f3425f' : 'inherit'}"></i>
+                            <span style="font-size:14px; font-weight:600;">${p.likes_count || 0}</span>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('news-feed-box').innerHTML = html || 'No posts yet.';
+        } catch (e) {
+            console.error('Feed load error', e);
+            document.getElementById('news-feed-box').innerHTML = '<p class="text-muted">Unable to load posts right now.</p>';
+        }
+    }
+
+    async function toggleLike(postId) {
+        try {
+            const res = await fetch(`/api/posts/${postId}/like`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                const heartIcon = document.querySelector(`[onclick="toggleLike(${postId})"] i`);
+                const countSpan = document.querySelector(`[onclick="toggleLike(${postId})"] span`);
+                let currentCount = parseInt(countSpan.innerText);
+                if (data.action === 'liked') {
+                    heartIcon.className = 'fa-solid fa-heart';
+                    heartIcon.style.color = '#f3425f';
+                    countSpan.innerText = currentCount + 1;
+                } else {
+                    heartIcon.className = 'fa-regular fa-heart';
+                    heartIcon.style.color = 'inherit';
+                    countSpan.innerText = Math.max(0, currentCount - 1);
+                }
+            }
+        } catch(e) { console.error("Like error", e); }
+    }
+
+
+    async function submitIndividualRating(off_id) {
+        const ratingVal = document.getElementById(`rating-${off_id}`).value;
+        const feedback = document.getElementById(`fb-${off_id}`) ? document.getElementById(`fb-${off_id}`).value : '';
+        const body = {
+            official_id: off_id,
+            rating: parseInt(ratingVal),
+            feedback: feedback
+        };
+        const res = await fetch('/api/ratings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const d = await res.json();
+        if (d.success) { 
+            alert("Rating Submitted successfully (1-5 scale)."); 
+            if(document.getElementById(`fb-${off_id}`)) document.getElementById(`fb-${off_id}`).value=''; 
+            window.RATING_SUMMARY_CACHE = null;
+            loadMembers();
+        }
+        else alert(d.error);
+    }
+
+    async function loadMembers() {
+        // Load Residents
+        const resM = await fetch('/api/members');
+        const query = (window.NAV_SEARCH_QUERY || '').toLowerCase();
+        window.MEMBERS_CACHE = (await resM.json()).filter(m => !query || (m.full_name || '').toLowerCase().includes(query));
+        let html = '';
+        window.MEMBERS_CACHE.forEach(m => {
+            let banInfo = '';
+            if (m.is_banned) {
+                const h = Math.floor(m.ban_remaining / 3600);
+                const mm = Math.floor((m.ban_remaining % 3600) / 60);
+                const ss = m.ban_remaining % 60;
+                const timeStr = [h, mm, ss].map(v => v < 10 ? '0' + v : v).join(':');
+                banInfo = `<br><span style="color:var(--danger); font-weight:800; font-size:11px;">🚫 BANNED: ${timeStr}</span>`;
+            }
+            html += `<div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; display:flex; align-items:center;">
+                <img src="${m.pic_url || '/static/default-avatar.svg'}" style="width:40px;height:40px;border-radius:50%;margin-right:10px;object-fit:cover;">
+                <div><b>${m.full_name}</b><br><small style="color:var(--text-muted)">Role: ${m.role.toUpperCase()} | Class: ${m.class_type || 'N/A'}</small>${banInfo}</div>
+            </div>`;
+        });
+        document.getElementById('members-list').innerHTML = html || 'No residents found.';
+        
+        // Load Officials
+        const resO = await fetch('/api/officials');
+        const officials = (await resO.json()).filter(o => !query || (o.full_name || '').toLowerCase().includes(query));
+        window.OFFICIALS_CACHE = officials;
+        if (window.loadRatingScheduleStatus) await window.loadRatingScheduleStatus(true);
+        if (window.loadRatingSummary) await window.loadRatingSummary(true);
+
+        if(document.getElementById('off-map') && !window.MAP_INIT) {
+            const allUsers = [...window.MEMBERS_CACHE, ...window.OFFICIALS_CACHE];
+            window.initGlobalMap('off-map', allUsers, false);
+            window.MAP_INIT = true;
+        }
+        let offHtml = '';
+        officials.forEach(o => {
+            offHtml += `<div style="padding:15px; border:1px solid var(--card-border); border-radius:15px; background:rgba(255,255,255,0.02); margin-bottom:15px;">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                    <img src="${o.pic_url || '/static/default-avatar.svg'}" style="width:50px;height:50px;border-radius:50%;object-fit:cover; border: 2px solid var(--primary);">
+                    <div>
+                        <b style="font-size:16px;">${o.full_name}</b><br>
+                        <span style="color:var(--primary); font-size:12px; font-weight:700;">${(o.position || 'Barangay Official').toUpperCase()}</span>
+                        ${window.buildVoteStatsHtml ? window.buildVoteStatsHtml(o.id) : ''}
+                    </div>
+                </div>
+                <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="font-size:13px;">Official Rating (1-5)</span>
+                        <b id="val-label-${o.id}" style="color:var(--warning)">5.0</b>
+                    </div>
+                    <input type="range" id="rating-${o.id}" min="1" max="5" step="1" value="5" style="width:100%; accent-color:var(--warning);" oninput="document.getElementById('val-label-${o.id}').innerText = parseFloat(this.value).toFixed(1)">
+                    <textarea id="fb-${o.id}" class="input-field" placeholder="Share your feedback..." rows="2" style="margin-top:10px; font-size:13px;"></textarea>
+                    ${window.buildRatingActionHtml ? window.buildRatingActionHtml(o.id) : `<button class="btn btn-primary" style="width:100%; margin-top:5px; padding:8px;" onclick="submitIndividualRating(${o.id})">Rate Official</button>`}
+                </div>
+            </div>`;
+        });
+        if(document.getElementById('officials-list')) document.getElementById('officials-list').innerHTML = offHtml || 'No officials registered yet.';
+    }
+
+    function loadOfficialHome(force = false) {
+        if (force || !officialTabState.homeLoaded) {
+            officialTabState.homeLoaded = true;
+            loadNewsFeed();
+        }
+    }
+
+    function loadOfficialMembersSection(force = false) {
+        if (force || !officialTabState.membersLoaded) {
+            officialTabState.membersLoaded = true;
+            loadMembers();
+        }
+    }
+
+    function loadOfficialWelfareSection(force = false) {
+        if (force || !officialTabState.welfareLoaded) {
+            officialTabState.welfareLoaded = true;
+            if (window.loadWelfareModule) window.loadWelfareModule(true);
+        } else if (window.renderWelfareRecords) {
+            window.renderWelfareRecords();
+        }
+    }
+
+    function loadOfficialOfficialsSection(force = false) {
+        if (force || !officialTabState.officialsLoaded) {
+            officialTabState.officialsLoaded = true;
+            loadMembers();
+        } else if (!window.OFFICIALS_CACHE) {
+            loadMembers();
+        }
+    }
+
+    function loadOfficialReportSection(force = false) {
+        if (force || !officialTabState.reportLoaded) {
+            officialTabState.reportLoaded = true;
+            refreshEmergencyPanels();
+        }
+    }
+
+    function loadOfficialHistorySection(force = false) {
+        if (force || !officialTabState.historyLoaded) {
+            officialTabState.historyLoaded = true;
+            loadHistory();
+        }
+    }
+
+    function loadOfficialMapSection(force = false) {
+        if (window.MAP_INIT && !force) {
+            setTimeout(() => { if(window.L && L.Map) window.dispatchEvent(new Event('resize')); }, 100);
+            return;
+        }
+
+        if (force || !officialTabState.mapLoaded) {
+            officialTabState.mapLoaded = true;
+            loadMembers();
+        }
+    }
+
+    window.addEventListener('tabChanged', (e) => {
+        const tab = typeof e.detail === 'string' ? e.detail : e.detail.tabId;
+        const forced = typeof e.detail === 'object' && e.detail.forced;
+        if(tab === 'home') loadOfficialHome(forced);
+        if(tab === 'members') loadOfficialMembersSection(forced);
+        if(tab === 'welfare') loadOfficialWelfareSection(forced);
+        if(tab === 'officials') loadOfficialOfficialsSection(forced);
+        if(tab === 'report') loadOfficialReportSection(forced);
+        if(tab === 'history') loadOfficialHistorySection(forced);
+        if(tab === 'maps') loadOfficialMapSection(forced);
+    });
+
+    window.addEventListener('nameSearchChanged', (e) => {
+        const tab = e.detail.tabId;
+        if(tab === 'home') loadNewsFeed();
+        if(tab === 'welfare' && window.renderWelfareRecords) window.renderWelfareRecords();
+        if(tab === 'members' || tab === 'officials' || tab === 'maps') loadMembers();
+    });
+
+    async function loadHistory() {
+        const res = await fetch('/api/history');
+        const data = await res.json();
+        let html = '';
+        data.forEach(h => {
+            html += `<div style="padding:15px; border-radius:8px; border-left:4px solid var(--primary); background:rgba(255,255,255,0.02); margin-bottom:10px;">
+                <p style="margin:0; font-size:15px;">${h.action}</p>
+                <small class="text-muted">${formatPhilippineDateTime(h.timestamp)}</small>
+            </div>`;
+        });
+        if(document.getElementById('history-box')) document.getElementById('history-box').innerHTML = html || '<p class="text-muted">No history logs yet.</p>';
+    }
+
+    async function loadEmgHistory() {
+        const historyBox = document.getElementById('emg-history-box');
+        if (historyBox) historyBox.innerHTML = '<p class="text-muted">Loading emergency history...</p>';
+
+        try {
+            const res = await fetch('/api/emergency/history', {
+                cache: 'no-store',
+                headers: { 'Cache-Control': 'no-cache' }
+            });
+            if (!res.ok) throw new Error('Unable to load emergency history.');
+
+            const payload = await res.json();
+            const data = Array.isArray(payload) ? payload : [];
+            let html = '';
+
+            data.forEach(e => {
+                html += `<div style="border:1px solid #555; padding:10px; border-radius:8px; margin-bottom:10px; background:rgba(255,255,255,0.05); opacity:0.8;">
+                    <strong>✅ RESOLVED: ${e.type.toUpperCase()} EMERGENCY</strong><br/>
+                    Reported By: <b>${e.reported_by_name}</b><br/>
+                    Time: ${formatPhilippineDateTime(e.timestamp)}<br/>
+                    <button class="btn btn-secondary" style="padding: 5px 10px; margin-top:10px;" onclick="viewEmergencyMap(${e.lat}, ${e.lng}, '${e.type}', '${e.reported_by_name.replace(/'/g, '\\\'')}')">View Historical Map</button>
+                </div>`;
+            });
+
+            if (historyBox) historyBox.innerHTML = html || 'No historical records.';
+        } catch (error) {
+            if (historyBox) historyBox.innerHTML = '<p class="text-danger">Unable to load emergency history right now.</p>';
+        }
+    }
+
+    setInterval(() => {
+        if (!window.MEMBERS_CACHE) return;
+        let needsRefresh = false;
+        window.MEMBERS_CACHE.forEach(m => {
+            if (m.is_banned && m.ban_remaining > 0) {
+                m.ban_remaining--;
+                needsRefresh = true;
+            } else if (m.is_banned && m.ban_remaining <= 0) {
+                m.is_banned = false;
+                needsRefresh = true;
+            }
+        });
+        if (needsRefresh) {
+            const dir = document.getElementById('members-list');
+            if (dir && dir.offsetParent !== null) {
+                renderMembersList();
+            }
+        }
+    }, 1000);
+
+    function renderMembersList() {
+        let html = '';
+        window.MEMBERS_CACHE.forEach(m => {
+            let banInfo = '';
+            if (m.is_banned) {
+                const h = Math.floor(m.ban_remaining / 3600);
+                const mm = Math.floor((m.ban_remaining % 3600) / 60);
+                const ss = m.ban_remaining % 60;
+                const timeStr = [h, mm, ss].map(v => v < 10 ? '0' + v : v).join(':');
+                banInfo = `<br><span style="color:var(--danger); font-weight:800; font-size:11px;">🚫 BANNED: ${timeStr}</span>`;
+            }
+            html += `<div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; display:flex; align-items:center;">
+                <img src="${m.pic_url || '/static/default-avatar.svg'}" style="width:40px;height:40px;border-radius:50%;margin-right:10px;object-fit:cover;">
+                <div><b>${m.role === 'official' ? m.full_name + ' (' + (m.position || 'Official') + ')' : m.full_name}</b><br><small style="color:var(--text-muted)">Role: ${m.role.toUpperCase()} | Class: ${m.class_type || 'N/A'}</small>${banInfo}</div>
+            </div>`;
+        });
+        document.getElementById('members-list').innerHTML = html;
+    }
+
+    loadOfficialHome();
+
+    let emgMap = null;
+    let emgMarker = null;
+
+    window.viewEmergencyMap = function(lat, lng, type, reporter) {
+        document.getElementById('emg-map-title').innerText = type.toUpperCase() + ' EMERGENCY';
+        document.getElementById('emg-map-subtitle').innerText = 'Reported By: ' + reporter;
+        document.getElementById('emg-map-modal').style.display = 'block';
+        
+        if(!emgMap) {
+            emgMap = L.map('emg-pin-map').setView([lat, lng], 18);
+            L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}',{maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3']}).addTo(emgMap);
+            setTimeout(() => { emgMap.invalidateSize(); }, 300);
+        } else {
+            emgMap.setView([lat, lng], 18);
+            setTimeout(() => { emgMap.invalidateSize(); }, 300);
+        }
+        
+        if(emgMarker) emgMap.removeLayer(emgMarker);
+        
+        const pinHtml = '<div style="background:var(--danger); color:white; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px red;"><i class="fa-solid fa-triangle-exclamation" style="font-size:12px;"></i></div>';
+        const icon = L.divIcon({className: 'emg-pin-icon', html: pinHtml, iconSize: [24, 24], iconAnchor: [12, 12]});
+        emgMarker = L.marker([lat, lng], {icon: icon}).addTo(emgMap)
+            .bindPopup(`<b>${type.toUpperCase()}</b><br>Reporter: ${reporter}`).openPopup();
+    };
+
+    let hotspotLayers = [];
+    let aiActiveType = null;
+    window.toggleAIHotspots = async function(type = null) {
+        const map = window.GLOBAL_MAP_INSTANCE;
+        if(!map) return alert("Map not ready.");
+
+        hotspotLayers.forEach(l => map.removeLayer(l));
+        hotspotLayers = [];
+
+        window.AI_ANALYSIS_ITERATIONS = window.AI_ANALYSIS_ITERATIONS || {};
+        const analysisKey = type || 'all';
+        const iteration = window.AI_ANALYSIS_ITERATIONS[analysisKey] || 0;
+        window.AI_ANALYSIS_ITERATIONS[analysisKey] = iteration + 1;
+
+        const url = type
+            ? `/api/emergency/analysis?type=${type}&iteration=${iteration}`
+            : `/api/emergency/analysis?iteration=${iteration}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        if(data.success) {
+            if (window.renderAiCommunityAnalysis) {
+                window.renderAiCommunityAnalysis(data);
+            } else {
+                document.getElementById('ai-insight-box').innerText = data.insight;
+                document.getElementById('ai-insight-box').style.display = 'block';
+            }
+            
+            data.hotspots.forEach(h => {
+                const circleColor = h.risk_level === 'critical' ? '#dc2626' : (h.risk_level === 'high' ? '#f97316' : '#facc15');
+                const purokLabel = h.purok && h.purok !== 'Unknown' ? `Purok ${h.purok}` : 'Mapped zone';
+                const householdsText = h.nearby_households ? `<br/>Nearby households: ${h.nearby_households}` : '';
+                const noteText = h.predictive_note ? `<br/>${h.predictive_note}` : '';
+                const validationText = h.validation_note ? `<br/><small>${h.validation_note}</small>` : '';
+                const circle = L.circle([h.lat, h.lng], {
+                    color: circleColor,
+                    weight: 3,
+                    opacity: 0.8,
+                    fillColor: circleColor,
+                    fillOpacity: 0.35,
+                    radius: h.radius,
+                    className: 'hotspot-circle'
+                }).addTo(map);
+                circle.bindPopup(`<b><i class="fa-solid fa-triangle-exclamation"></i> ${h.risk_label || 'Prone Area'} (${purokLabel})</b><br/>AI detected ${h.count} recurring report(s) here.${householdsText}${noteText}${validationText}`);
+                hotspotLayers.push(circle);
+            });
+            aiActiveType = type || 'all';
+        }
+    };
+</script>
+{% endblock %}

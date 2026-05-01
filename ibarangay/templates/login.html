@@ -1,0 +1,292 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="display: flex; justify-content: center; align-items: center; min-height: 70vh;">
+    <div class="glass-card" style="width: 100%; max-width: 400px; text-align: center;">
+        <h2>Welcome to iBarangay</h2>
+        <p class="text-muted" style="margin-bottom: 24px;">AI-Driven Governance System</p>
+        <div id="login-error" style="color:var(--danger); display:none; margin-bottom: 15px;"></div>
+        <form id="login-form">
+            <input type="email" id="username" class="input-field" placeholder="Email Address / Username" required>
+            <div class="password-field-wrap">
+                <input type="password" id="password" class="input-field" placeholder="Password" required>
+                <button
+                    type="button"
+                    id="login-password-toggle"
+                    class="password-toggle-btn"
+                    aria-label="Password hidden"
+                    aria-pressed="false"
+                    onclick="togglePasswordVisibility('password', this)"
+                >
+                    <i class="fa-regular fa-eye-slash"></i>
+                </button>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Login to Portal</button>
+        </form>
+        <hr style="border:0; border-top: 1px solid var(--card-border); margin: 20px 0;">
+        <button type="button" class="btn btn-secondary"
+            style="width: 100%; height:40px; background:transparent; border: 1px solid var(--primary); color:var(--primary)"
+            onclick="showTermsModal()">Register as Pending BIO</button>
+
+        <div id="bio-reg"
+            style="display:none; text-align:left; margin-top:20px; border-top:1px solid #333; padding-top:15px;">
+            <p style="margin-top:0;"><strong>Register as BIO</strong></p>
+            <div id="bio-reg-error" style="display:none; margin-bottom:12px; padding:10px 12px; border-radius:10px; border:1px solid rgba(239, 68, 68, 0.35); background:rgba(239, 68, 68, 0.12); color:var(--danger); font-size:13px; font-weight:700;"></div>
+            <input type="text" id="reg-name" class="input-field" placeholder="Full Name">
+            <input type="email" id="reg-personal" class="input-field" placeholder="Personal Gmail (Recovery)">
+            
+            <div style="display:flex; gap:5px; align-items:center;">
+                <input type="text" id="reg-brgy" class="input-field" placeholder="Search Barangay (e.g. Mabuhay)">
+                <button type="button" class="btn btn-secondary" onclick="locateBrgy()" style="height:38px; padding:0 10px;">Locate</button>
+            </div>
+            <div id="reg-map" style="width:100%; height:150px; background:#222; border-radius:5px; margin-bottom:10px; display:none;"></div>
+            
+            <input type="text" id="reg-user" class="input-field" placeholder="Auto-generated Official Email" style="color:var(--primary); font-weight:bold;" readonly>
+            <input type="text" id="reg-pos" class="input-field" placeholder="Barangay Position (e.g. PIO, Secretary)">
+            <div class="password-field-wrap">
+                <input type="password" id="reg-pass" class="input-field" placeholder="System Password">
+                <button
+                    type="button"
+                    id="reg-password-toggle"
+                    class="password-toggle-btn"
+                    aria-label="Password hidden"
+                    aria-pressed="false"
+                    onclick="togglePasswordVisibility('reg-pass', this)"
+                >
+                    <i class="fa-regular fa-eye-slash"></i>
+                </button>
+            </div>
+            <button type="button" class="btn btn-secondary" onclick="regBIO()"
+                style="width:100%; background:var(--primary); color:white;">Submit for Approval</button>
+        </div>
+    </div>
+</div>
+
+<!-- Terms of Service Modal -->
+<div id="terms-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); backdrop-filter:blur(10px); z-index:2000; justify-content:center; align-items:center; padding: 20px;">
+    <div class="glass-card" style="max-width: 600px; width:100%; max-height:80vh; overflow-y:auto; border-color: var(--primary);">
+        <h2 style="color: var(--primary);"><i class="fa-solid fa-shield-halved"></i> Terms of Service & Agreement</h2>
+        <p class="text-muted">Please review carefully before proceeding with BIO registration.</p>
+        <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; font-size: 0.9rem; line-height: 1.6; color: var(--text-light); margin: 20px 0; border: 1px solid var(--card-border);">
+            <h4 style="margin-top:0;">1. Role & Responsibility</h4>
+            <p>As a Barangay Information Officer (BIO), you are entrusted with the management of community data, emergency reporting, and financial transparency. You agree to use the iBarangay platform solely for official government business.</p>
+            
+            <h4>2. Data Privacy & Confidentiality</h4>
+            <p>You MUST protect the privacy of all residents. Unauthorized sharing of resident profiles, income data, or personal details is strictly prohibited and may result in legal action under the Data Privacy Act.</p>
+            
+            <h4>3. Accuracy of Information</h4>
+            <p>You agree to input accurate and verified information into the system. Intentional falsification of records is grounds for immediate termination and account deletion.</p>
+            
+            <h4>4. Security Protocol</h4>
+            <p>You are responsible for maintaining the security of your account credentials. Any actions performed through your account will be logged and attributed to you.</p>
+            
+            <h4>5. Approval Process</h4>
+            <p>Registration as a BIO is subject to verification and approval by the Superadmin. Providing false credentials will lead to rejection.</p>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button type="button" class="btn" style="background: transparent; border: 1px solid var(--card-border); color: var(--text-muted);" onclick="closeTermsModal()">Decline</button>
+            <button type="button" class="btn btn-primary" onclick="agreeTerms()">I Agree & Continue</button>
+        </div>
+    </div>
+</div>
+
+<!-- Ban Modal -->
+<div id="ban-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); backdrop-filter:blur(15px); z-index:3000; justify-content:center; align-items:center; padding: 20px;">
+    <div class="glass-card" style="max-width: 450px; width:100%; text-align:center; border-color: var(--danger);">
+        <h2 style="color: var(--danger);"><i class="fa-solid fa-user-slash"></i> Account Restricted</h2>
+        <div id="ban-countdown" style="font-size:32px; font-weight:800; color:var(--text); margin:20px 0; font-family:monospace;">00:00:00</div>
+        <p id="ban-message" style="color:var(--text-light); font-size:14px; line-height:1.6;"></p>
+        <button type="button" class="btn btn-primary" style="width:100%; margin-top:20px;" onclick="window.location.reload()">Back to Login</button>
+    </div>
+</div>
+
+<script>
+    function togglePasswordVisibility(inputId, trigger) {
+        const input = document.getElementById(inputId);
+        if (!input || !trigger) return;
+
+        const willShow = input.type === 'password';
+        input.type = willShow ? 'text' : 'password';
+        trigger.setAttribute('aria-label', willShow ? 'Password visible' : 'Password hidden');
+        trigger.setAttribute('aria-pressed', willShow ? 'true' : 'false');
+
+        const icon = trigger.querySelector('i');
+        if (icon) {
+            icon.className = willShow ? 'fa-regular fa-eye' : 'fa-regular fa-eye-slash';
+        }
+    }
+
+    function setBioRegistrationError(message = '') {
+        const box = document.getElementById('bio-reg-error');
+        if (!message) {
+            box.style.display = 'none';
+            box.innerText = '';
+            return;
+        }
+        box.innerText = message;
+        box.style.display = 'block';
+    }
+
+    function buildOfficialEmail(fullName, barangay) {
+        const rawName = (fullName || '').trim();
+        const brgy = (barangay || '').trim();
+        if (!rawName || !brgy) return '';
+
+        const nameArr = rawName.split(/\s+/);
+        let prefix = 'admin';
+        if (nameArr.length === 1 && nameArr[0]) {
+            prefix = nameArr[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+        } else if (nameArr.length > 1) {
+            const initials = nameArr
+                .slice(0, -1)
+                .filter(n => !n.endsWith('.'))
+                .map(n => n.charAt(0).toLowerCase().replace(/[^a-z0-9]/g, ''))
+                .join('');
+            const surname = nameArr[nameArr.length - 1].toLowerCase().replace(/[^a-z0-9]/g, '');
+            prefix = initials + surname;
+        }
+
+        const safeBrgy = brgy.toLowerCase().replace(/[^a-z0-9]/g, '');
+        return `${prefix || 'admin'}@${safeBrgy || 'barangay'}.ph`;
+    }
+
+    function updateGeneratedBioEmail() {
+        const generated = buildOfficialEmail(
+            document.getElementById('reg-name').value,
+            document.getElementById('reg-brgy').value
+        );
+        document.getElementById('reg-user').value = generated;
+    }
+
+    function showTermsModal() {
+        document.getElementById('terms-modal').style.display = 'flex';
+    }
+
+    function closeTermsModal() {
+        document.getElementById('terms-modal').style.display = 'none';
+    }
+
+    function agreeTerms() {
+        closeTermsModal();
+        document.getElementById('bio-reg').style.display = 'block';
+        setBioRegistrationError('');
+        document.getElementById('bio-reg').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const u = document.getElementById('username').value;
+        const p = document.getElementById('password').value;
+        const res = await fetch('/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: u, password: p })
+        });
+        const data = await res.json();
+        if (data.success) {
+            window.location.href = '/dashboard';
+        } else if (res.status === 403 && data.error === 'Banned') {
+            document.getElementById('ban-message').innerText = data.message;
+            document.getElementById('ban-modal').style.display = 'flex';
+            startBanCountdown(data.remaining_seconds);
+        } else {
+            const err = document.getElementById('login-error');
+            err.style.display = 'block';
+            err.innerText = data.error || 'Authentication Failed';
+        }
+    });
+
+    function startBanCountdown(seconds) {
+        const box = document.getElementById('ban-countdown');
+        let remaining = seconds;
+        const interval = setInterval(() => {
+            if (remaining <= 0) {
+                clearInterval(interval);
+                window.location.reload();
+                return;
+            }
+            const hours = Math.floor(remaining / 3600);
+            const mins = Math.floor((remaining % 3600) / 60);
+            const secs = remaining % 60;
+            box.innerText = [hours, mins, secs].map(v => v < 10 ? '0' + v : v).join(':');
+            remaining--;
+        }, 1000);
+    }
+
+    let regMap;
+    let regMapMarker;
+    async function locateBrgy() {
+        const brgy = document.getElementById('reg-brgy').value;
+        if(!brgy) return alert('Enter a barangay name');
+        updateGeneratedBioEmail();
+
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(brgy + ', Philippines')}`);
+            const data = await res.json();
+            if(data.length === 0) {
+                alert('Barangay not found on the map. Try adding city name.');
+                return;
+            }
+
+            const leafletReady = await window.loadLeafletAssets();
+            if (!leafletReady || !window.L) {
+                alert('Map could not be loaded right now, but your BIO email has been prepared. You can still submit the registration.');
+                return;
+            }
+
+            document.getElementById('reg-map').style.display = 'block';
+            if(!regMap) {
+                regMap = L.map('reg-map').setView([data[0].lat, data[0].lon], 14);
+                L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}',{ maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3']}).addTo(regMap);
+            } else {
+                regMap.setView([data[0].lat, data[0].lon], 14);
+            }
+
+            if (regMapMarker) {
+                regMap.removeLayer(regMapMarker);
+            }
+            regMapMarker = L.marker([data[0].lat, data[0].lon]).addTo(regMap).bindPopup(data[0].display_name).openPopup();
+            setTimeout(() => regMap.invalidateSize(), 150);
+        } catch (error) {
+            updateGeneratedBioEmail();
+            alert('Barangay lookup failed, but you can still submit the BIO request if the generated email is shown.');
+        }
+    }
+
+    async function regBIO() {
+        const full_name = document.getElementById('reg-name').value;
+        const username = document.getElementById('reg-user').value || buildOfficialEmail(full_name, document.getElementById('reg-brgy').value);
+        const position = document.getElementById('reg-pos').value;
+        const password = document.getElementById('reg-pass').value;
+        const brgy = document.getElementById('reg-brgy').value;
+        setBioRegistrationError('');
+        if (!username || !password || !full_name || !brgy || !position) {
+            setBioRegistrationError('Fill in all BIO registration fields first.');
+            return;
+        }
+        const res = await fetch('/register_bio', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ username, full_name, password, position, barangay_name: brgy }) 
+        });
+        const d = await res.json();
+        if (d.success) {
+            alert("Registration submitted! Status is pending via Superadmin. Your login is: " + username);
+            window.location.reload();
+            return;
+        }
+
+        if (d.error_code === 'bio_conflict') {
+            setBioRegistrationError('That name/brgy has already controlled.');
+            return;
+        }
+
+        setBioRegistrationError(d.error || 'BIO registration failed.');
+    }
+
+    document.getElementById('reg-name').addEventListener('input', updateGeneratedBioEmail);
+    document.getElementById('reg-brgy').addEventListener('input', updateGeneratedBioEmail);
+    ['reg-name', 'reg-brgy', 'reg-pos', 'reg-pass', 'reg-user'].forEach(id => {
+        document.getElementById(id).addEventListener('input', () => setBioRegistrationError(''));
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,29 @@
+{
+  "model_type": "RandomForestClassifier",
+  "model_path": "C:\\Users\\HP ELITEBOOK\\.gemini\\antigravity\\scratch\\ibarangay\\ai_model\\health_risk_model.joblib",
+  "features": [
+    "age",
+    "income",
+    "family_size",
+    "incident_count"
+  ],
+  "target": "health_risk",
+  "training_rows": 217,
+  "database_rows_used": 1,
+  "seed_rows_used": 30,
+  "source_notebook_path": "C:\\Users\\HP ELITEBOOK\\Downloads\\thesis-ai-train.ipynb",
+  "accuracy": 0.8636363636363636,
+  "feature_importances": {
+    "age": 0.37378248298492045,
+    "income": 0.36463383382905035,
+    "family_size": 0.20104798053287745,
+    "incident_count": 0.06053570265315182
+  },
+  "incident_cluster_centers": [
+    0.7551,
+    2.4828,
+    4.679
+  ],
+  "dataset_note": "Training follows the thesis notebook structure using age, income, family size, and incident count.",
+  "rating_note": "Service, transparency, and response ratings are retained in the dataset for thesis traceability but are not classifier inputs."
+}

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section id="tab-home" class="tab-section active">
+    <div class="glass-card" style="max-width:760px; margin:0 auto; border-color:rgba(239, 68, 68, 0.45);">
+        <small class="text-muted">Danger Zone</small>
+        <h2 style="margin:8px 0 12px; color:var(--danger);">Delete Entire Barangay Page</h2>
+        <p style="line-height:1.7; color:var(--text-light);">
+            This will permanently remove the entire <strong>{{ barangay_name or 'assigned' }}</strong> barangay page,
+            including residents, officials, reports, posts, schedules, and related records tied to that barangay.
+        </p>
+        <p style="line-height:1.7; color:var(--text-light); margin-top:12px;">
+            To continue, type <strong>{{ expected_confirmation or 'DELETE <barangay>' }}</strong> exactly below.
+        </p>
+
+        {% if error_message %}
+        <div style="margin-top:16px; padding:12px 14px; border-radius:10px; background:rgba(239, 68, 68, 0.12); border:1px solid rgba(239, 68, 68, 0.28); color:#fecaca;">
+            {{ error_message }}
+        </div>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('main.wipe_current_bio_barangay_page') }}" style="margin-top:20px;">
+            <label for="wipe-confirmation-input" style="display:block; font-weight:700; margin-bottom:8px;">Confirmation Text</label>
+            <input
+                id="wipe-confirmation-input"
+                name="confirmation_text"
+                class="input-field"
+                type="text"
+                placeholder="{{ expected_confirmation or 'DELETE Barangay' }}"
+                autocomplete="off"
+                required
+            >
+            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:18px;">
+                <button type="submit" class="btn btn-danger" style="background:var(--danger);">
+                    Delete Barangay Permanently
+                </button>
+                <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary" style="text-decoration:none;">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}

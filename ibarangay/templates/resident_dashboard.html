@@ -1,0 +1,561 @@
+{% extends 'base.html' %}
+{% block content %}
+<div id="tab-home" class="tab-section active">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 2;">
+            <h2>Barangay Directory & Services 📋</h2>
+            <div style="display: flex; gap: 20px; overflow-x: auto; padding-bottom:10px;">
+                <div style="min-width: 150px; padding:15px; background: rgba(255,255,255,0.05); border-radius:15px;">
+                    <p style="margin:0; font-weight:800; color:var(--primary)">Patawag Stats</p>
+                    <p id="stat-patawag" style="font-size:24px; margin:5px 0;">--</p>
+                </div>
+                <div style="min-width: 150px; padding:15px; background: rgba(255,255,255,0.05); border-radius:15px;">
+                    <p style="margin:0; font-weight:800; color:var(--secondary)">Health Alerts</p>
+                    <p id="stat-health" style="font-size:24px; margin:5px 0;">None</p>
+                </div>
+                <div style="min-width: 150px; padding:15px; background: rgba(255,255,255,0.05); border-radius:15px;">
+                    <p style="margin:0; font-weight:800; color:var(--warning)">Financial Rep.</p>
+                    <p id="stat-finance" style="font-size:24px; margin:5px 0;">Q1/2026</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-card" style="grid-column: span 2;">
+            <h3>Community News Feed 📰</h3>
+            
+            <div id="news-feed-box" style="margin-top:15px; padding-right:10px;">
+                <p class="text-muted">Loading feed...</p>
+            </div>
+        </div>
+
+        <div class="glass-card">
+            <h3>Brgy Transparency 💰</h3>
+            <p class="text-muted" style="font-size:13px;">View latest AI-summarized financial project reports.</p>
+            <button class="btn btn-secondary" style="background:#475569; width:100%; color:white;" onclick="viewFinance()">View Latest Summary</button>
+            <div id="finance-modal" style="margin-top:15px; font-size:14px; display:none; border-top:1px solid #333; padding-top:10px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-members" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 2;">
+            <h3>Barangay Member Directory 👥</h3>
+            <p class="text-muted">Public directory of barangay members (Privacy protected).</p>
+            <div id="members-list" style="margin-top:15px; display:grid; gap:10px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));"></div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-welfare" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 2;">
+            <h3>My Welfare Assistance</h3>
+            <p class="text-muted">Track relief goods, cash aid, and barangay support recorded under your resident profile.</p>
+            <div id="welfare-summary-box" style="margin-top:15px;"></div>
+        </div>
+        <div class="glass-card" style="grid-column: span 2;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                <div>
+                    <h3 style="margin-bottom:4px;">Assistance History</h3>
+                    <p class="text-muted" style="font-size:13px; margin:0;">Status updates help you see which welfare entries are planned, approved, or already released.</p>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <input type="text" id="welfare-search" class="input-field" placeholder="Search assistance or program..." style="max-width:240px; margin:0;" oninput="window.renderWelfareRecords && window.renderWelfareRecords()">
+                    <select id="welfare-filter-status" class="input-field" style="min-width:170px; margin:0;" onchange="window.renderWelfareRecords && window.renderWelfareRecords()">
+                        <option value="">All statuses</option>
+                    </select>
+                </div>
+            </div>
+            <div id="welfare-records-box" style="margin-top:15px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-report" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="border-color: var(--danger);">
+            <h2 style="color:var(--danger)">🚨 Report Emergency</h2>
+            <p class="text-muted" style="font-size:14px;">One-tap report for localized emergencies. Automatically attaches your location.</p>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn btn-danger" style="flex:1" onclick="triggerEmergency('accident')">⚠️ Accident</button>
+                <button class="btn btn-danger" style="flex:1; background:#f43f5e" onclick="triggerEmergency('health')">❤️ Health</button>
+            </div>
+            <p class="text-muted" style="font-size:11px; margin-top:10px;">Warning: False reports are punishable by law.</p>
+        </div>
+    </div>
+</div>
+
+<div id="tab-officials" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 2;">
+            <h3 style="color:var(--primary)">Barangay Officials 👔</h3>
+            <button class="btn btn-secondary" style="padding:8px 12px; margin-bottom:10px;" onclick="openRatingSummary()">View Vote Summary</button>
+            <p class="text-muted" style="font-size:14px; margin-bottom:15px;">Your feedback is processed by AI to improve governance.</p>
+            <div id="officials-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-notification" class="tab-section">
+    <div class="dashboard-grid">
+        {% if session.get('user_id') %}
+        <div class="glass-card" style="border-color: var(--warning);">
+            <h2 style="color:var(--warning)">🗣️ Official Summons</h2>
+            <p class="text-muted" style="font-size:14px;">Action items requiring your physical presence at the Brgy Hall.</p>
+            <div id="summon-list" style="margin-top:15px;">
+                <p class="text-muted" style="text-align:center">Checking records...</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="glass-card">
+            <h3>Recent Events & Announcements 🏆</h3>
+            <p class="text-muted">Official barangay notifications.</p>
+            <div id="feed-box" style="margin-top:15px; padding-right:10px;">
+                <p class="text-muted">Loading feed...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-maps" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 2;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <h3>Barangay Map & Residents Location 🗺️</h3>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-secondary" style="background:var(--secondary); color:#fff; padding: 5px 15px; font-size:12px;" onclick="toggleAIHotspots('health')">
+                        <i class="fa-solid fa-heart-pulse"></i> Health AI
+                    </button>
+                    <button class="btn btn-secondary" style="background:var(--danger); color:#fff; padding: 5px 15px; font-size:12px;" onclick="toggleAIHotspots()">
+                        <i class="fa-solid fa-brain"></i> All AI Analysis
+                    </button>
+                </div>
+            </div>
+            <p class="text-muted">Actual map of the registered barangay showing houses (Limited view mode). The AI component highlights recurring incident patterns and potential community health risks.</p>
+            <div id="ai-insight-box" style="display:none; background:rgba(239, 68, 68, 0.1); border:1px solid var(--danger); padding:10px; border-radius:10px; margin-bottom:10px; font-size:14px; color:var(--text-light); animation: fadeIn 0.5s ease;"></div>
+            <div id="ai-analysis-details" class="ai-analysis-panel" style="display:none;"></div>
+            <div id="res-map" style="width: 100%; height: 400px; background: rgba(0,0,0,0.2); border-radius: 10px; border: 1px dashed var(--card-border); z-index:0;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-history" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 2;">
+            <h3>Your Emergency Reports History 🚨</h3>
+            <p class="text-muted">A timeline tracking the emergency reports you have dispatched and their official responses.</p>
+            <div id="history-box" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const residentTabState = {
+        homeLoaded: false,
+        membersLoaded: false,
+        welfareLoaded: false,
+        officialsLoaded: false,
+        notificationsLoaded: false,
+        historyLoaded: false,
+        mapLoaded: false
+    };
+
+    async function triggerEmergency(type) {
+        if (!navigator.geolocation) return alert("Geolocation not supported. Call hotline.");
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const body = { type, lat: pos.coords.latitude, lng: pos.coords.longitude, purok: "N/A" };
+            await fetch('/api/emergency', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            alert('🚨 Emergency Alert Sent to Brgy Hall. Assistance is on the way.');
+        });
+    }
+
+    async function triggerEmergency(type) {
+        const result = await window.submitEmergencyReport(type, {
+            successMessage: 'Emergency alert sent to Brgy Hall. Assistance is on the way.',
+            fallbackMessage: 'Location is unavailable right now. Allow location access or update your saved house coordinates, then try again.'
+        });
+        if (!result?.success) return;
+    }
+
+    async function loadFeed() {
+        const [annRes, evRes] = await Promise.all([fetch('/api/announcements'), fetch('/api/events')]);
+        const anns = await annRes.json();
+        const evs = await evRes.json();
+        let html = '';
+        anns.forEach(a => {
+            html += `<div style="border-left:3px solid var(--primary); padding-left:10px; margin-bottom:15px;">
+                <small style="color:var(--text-muted)">📢 Announcement (${formatPhilippineDate(a.date)})</small>
+                <p style="margin:5px 0; font-size:14px;">${a.message}</p>
+            </div>`;
+        });
+        evs.forEach(e => {
+            html += `<div style="border-left:3px solid var(--secondary); padding-left:10px; margin-bottom:15px;">
+                <small style="color:var(--text-muted)">🏆 ${e.type.toUpperCase()} • ${formatPhilippineDateTime(e.date)}</small>
+                <p style="margin:5px 0; font-weight:800; font-size:14px;">${e.title}</p>
+                <p style="margin:0; font-size:12px; color:var(--text-muted)">${e.desc}</p>
+            </div>`;
+        });
+        document.getElementById('feed-box').innerHTML = html || 'No updates yet.';
+    }
+
+    async function submitRating() {
+        const body = {
+            responsiveness: parseInt(document.getElementById('r-resp').value),
+            fairness: parseInt(document.getElementById('r-fair').value),
+            service_quality: 5,
+            community_involvement: 5,
+            feedback: document.getElementById('r-text').value
+        };
+        const res = await fetch('/api/ratings', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const d = await res.json();
+        if (d.success) { alert("Rating Submitted. Thank you for your feedback."); document.getElementById('r-text').value=''; }
+        else alert(d.error);
+    }
+
+    async function checkSummons() {
+        const res = await fetch('/api/summons');
+        const data = await res.json();
+        const box = document.getElementById('summon-list');
+        if (data.length === 0) { box.innerHTML = '<p style="font-size:14px; color:var(--secondary)">✅ All clear.</p>'; return; }
+        
+        let html = '';
+        data.forEach(s => {
+            html += `<div style="background:rgba(239, 68, 68, 0.1); border:1px solid var(--danger); padding:10px; border-radius:10px; margin-bottom:10px;">
+                <p style="margin:0; font-size:14px;"><b>Mandatory Appearance</b></p>
+                <p style="margin:5px 0; font-size:12px;">Reason: ${s.reason}</p>
+                <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="ackSummon(${s.id})">Acknowledge</button>
+            </div>`;
+        });
+        box.innerHTML = html;
+        document.getElementById('stat-patawag').innerText = data.length;
+    }
+
+    async function ackSummon(id) {
+        await fetch('/api/summons/ack', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        checkSummons();
+    }
+
+    async function viewFinance() {
+        const res = await fetch('/api/finance');
+        const data = await res.json();
+        const box = document.getElementById('finance-modal');
+        if (data.length === 0) { box.innerText = "No published reports."; }
+        else {
+            const latest = data[0];
+            box.innerHTML = `<p><b>Report for ${latest.month}/${latest.year}</b></p><p style="font-style:italic">"${latest.summary}"</p>`;
+        }
+        box.style.display = 'block';
+    }
+
+
+    async function loadNewsFeed() {
+        try {
+            const res = await fetch('/api/posts');
+            if (!res.ok) throw new Error('Failed to load posts');
+            const query = (window.NAV_SEARCH_QUERY || '').toLowerCase();
+            const posts = (await res.json()).filter(p => window.postMatchesSearch(p, query));
+            let html = '';
+            posts.forEach(p => {
+                const mentionsHtml = Array.isArray(p.mentions) && p.mentions.length > 0
+                    ? p.mentions.map(m => `<span class="mention-tag">@${typeof m === 'string' ? m : (m.name || '')}</span>`).join(' ')
+                    : '';
+                const locationHtml = p.location ? `<small style="color:var(--secondary); display:block; margin-top:4px;"><i class="fa-solid fa-location-dot"></i> ${p.location}</small>` : '';
+                const authorPosition = p.author_position || ((p.author_role === 'bio' || p.author_role === 'official') ? 'Barangay Official' : '');
+                let mediaHtml = '';
+                if (Array.isArray(p.media_urls) && p.media_urls.length > 0) {
+                    mediaHtml = `<div class="post-media-grid" style="grid-template-columns: repeat(${p.media_urls.length > 1 ? 2 : 1}, 1fr);">
+                        ${p.media_urls.map(m => {
+                            const mediaUrl = typeof m === 'string' ? m : m.url;
+                            const isVideo = typeof m === 'object' ? m.type === 'video' : /\.(mp4|webm|ogg)$/i.test(mediaUrl || '');
+                            return isVideo
+                                ? `<video src="${mediaUrl}" controls style="width:100%; border-radius:10px;" preload="metadata"></video>`
+                                : `<img src="${mediaUrl}" style="width:100%; border-radius:10px;" loading="lazy">`;
+                        }).join('')}
+                    </div>`;
+                } else if (p.image_url) {
+                    mediaHtml = `<img src="${p.image_url}" style="width:100%; border-radius:10px; margin-top:10px;" onclick="window.open(this.src)" loading="lazy">`;
+                }
+
+                html += `<div class="glass-card" style="margin-bottom:20px; padding:20px; animation: fadeIn 0.4s ease;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <img src="${p.author_pic || '/static/default-avatar.svg'}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;" loading="lazy">
+                            <div>
+                                <b style="font-size:15px; display:block;">${p.author_name}</b>
+                                ${authorPosition ? `<small style="color:var(--primary); font-size:11px; font-weight:800; display:block; margin-top:2px;">${authorPosition}</small>` : ''}
+                                <small style="color:var(--text-muted); font-size:11px;">${formatPhilippineDateTime(p.timestamp)}</small>
+                            </div>
+                        </div>
+                    </div>
+                    <p style="margin:0; font-size:15px; line-height:1.6; white-space: pre-wrap; color:var(--text-light);">${p.content} ${mentionsHtml}</p>
+                    ${locationHtml}
+                    ${mediaHtml}
+                    <div style="margin-top:15px; display:flex; gap:20px; align-items:center; border-top:1px solid rgba(255,255,255,0.05); padding-top:10px;">
+                        <div style="cursor:pointer; display:flex; align-items:center; gap:6px; font-size:18px;" onclick="toggleLike(${p.id})">
+                            <i class="${p.is_liked ? 'fa-solid fa-heart' : 'fa-regular fa-heart'}" style="color:${p.is_liked ? '#f3425f' : 'inherit'}"></i>
+                            <span style="font-size:14px; font-weight:600;">${p.likes_count || 0}</span>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('news-feed-box').innerHTML = html || 'No posts yet.';
+        } catch (e) {
+            console.error('Feed load error', e);
+            document.getElementById('news-feed-box').innerHTML = '<p class="text-muted">Unable to load posts right now.</p>';
+        }
+    }
+
+    async function toggleLike(postId) {
+        try {
+            const res = await fetch(`/api/posts/${postId}/like`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                const heartIcon = document.querySelector(`[onclick="toggleLike(${postId})"] i`);
+                const countSpan = document.querySelector(`[onclick="toggleLike(${postId})"] span`);
+                let currentCount = parseInt(countSpan.innerText);
+                if (data.action === 'liked') {
+                    heartIcon.className = 'fa-solid fa-heart';
+                    heartIcon.style.color = '#f3425f';
+                    countSpan.innerText = currentCount + 1;
+                } else {
+                    heartIcon.className = 'fa-regular fa-heart';
+                    heartIcon.style.color = 'inherit';
+                    countSpan.innerText = Math.max(0, currentCount - 1);
+                }
+            }
+        } catch(e) { console.error("Like error", e); }
+    }
+
+
+    async function submitIndividualRating(off_id) {
+        const ratingVal = document.getElementById(`rating-${off_id}`).value;
+        const feedback = document.getElementById(`fb-${off_id}`) ? document.getElementById(`fb-${off_id}`).value : '';
+        const body = {
+            official_id: off_id,
+            rating: parseInt(ratingVal),
+            feedback: feedback
+        };
+        const res = await fetch('/api/ratings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const d = await res.json();
+        if (d.success) { 
+            alert("Rating Submitted successfully (1-5 scale)."); 
+            if(document.getElementById(`fb-${off_id}`)) document.getElementById(`fb-${off_id}`).value=''; 
+            window.RATING_SUMMARY_CACHE = null;
+            loadMembers();
+        }
+        else alert(d.error);
+    }
+
+    function loadResidentHome(force = false) {
+        if (force || !residentTabState.homeLoaded) {
+            residentTabState.homeLoaded = true;
+            loadNewsFeed();
+        }
+    }
+
+    function loadResidentMembersSection(force = false) {
+        if (force || !residentTabState.membersLoaded) {
+            residentTabState.membersLoaded = true;
+            loadMembers();
+        }
+    }
+
+    function loadResidentWelfareSection(force = false) {
+        if (force || !residentTabState.welfareLoaded) {
+            residentTabState.welfareLoaded = true;
+            if (window.loadWelfareModule) window.loadWelfareModule(true);
+        } else if (window.renderWelfareRecords) {
+            window.renderWelfareRecords();
+        }
+    }
+
+    function loadResidentOfficialsSection(force = false) {
+        if (force || !residentTabState.officialsLoaded) {
+            residentTabState.officialsLoaded = true;
+            loadMembers();
+        } else if (!window.OFFICIALS_CACHE) {
+            loadMembers();
+        }
+    }
+
+    function loadResidentNotifications(force = false) {
+        if (force || !residentTabState.notificationsLoaded) {
+            residentTabState.notificationsLoaded = true;
+            loadFeed();
+            checkSummons();
+        }
+    }
+
+    function loadResidentHistorySection(force = false) {
+        if (force || !residentTabState.historyLoaded) {
+            residentTabState.historyLoaded = true;
+            loadHistory();
+        }
+    }
+
+    function loadResidentMapSection(force = false) {
+        if (window.MAP_INIT && !force) {
+            setTimeout(() => { if(window.L && L.Map) window.dispatchEvent(new Event('resize')); }, 100);
+            return;
+        }
+
+        if (force || !residentTabState.mapLoaded) {
+            residentTabState.mapLoaded = true;
+            loadMembers();
+        }
+    }
+
+    window.addEventListener('tabChanged', (e) => {
+        const tab = typeof e.detail === 'string' ? e.detail : e.detail.tabId;
+        const forced = typeof e.detail === 'object' && e.detail.forced;
+        if(tab === 'home') loadResidentHome(forced);
+        if(tab === 'members') loadResidentMembersSection(forced);
+        if(tab === 'welfare') loadResidentWelfareSection(forced);
+        if(tab === 'officials') loadResidentOfficialsSection(forced);
+        if(tab === 'notification') loadResidentNotifications(forced);
+        if(tab === 'history') loadResidentHistorySection(forced);
+        if(tab === 'maps') loadResidentMapSection(forced);
+    });
+
+    window.addEventListener('nameSearchChanged', (e) => {
+        const tab = e.detail.tabId;
+        if(tab === 'home') loadNewsFeed();
+        if(tab === 'welfare' && window.renderWelfareRecords) window.renderWelfareRecords();
+        if(tab === 'members' || tab === 'officials' || tab === 'maps') loadMembers();
+    });
+
+    async function loadMembers() {
+        const resM = await fetch('/api/members');
+        const query = (window.NAV_SEARCH_QUERY || '').toLowerCase();
+        window.MEMBERS_CACHE = (await resM.json()).filter(m => !query || (m.full_name || '').toLowerCase().includes(query));
+        let html = '';
+        window.MEMBERS_CACHE.forEach(m => {
+            html += `<div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; display:flex; align-items:center;">
+                <img src="${m.pic_url || '/static/default-avatar.svg'}" style="width:40px;height:40px;border-radius:50%;margin-right:10px;object-fit:cover;">
+                <div><b>${m.role === 'official' ? m.full_name + ' (' + (m.position || 'Official') + ')' : m.full_name}</b><br><small style="color:var(--text-muted)">Role: ${m.role.toUpperCase()} | Class: ${m.class_type || 'N/A'}</small></div>
+            </div>`;
+        });
+        document.getElementById('members-list').innerHTML = html || 'No residents found.';
+        
+        // Load Officials
+        const resO = await fetch('/api/officials');
+        const officials = (await resO.json()).filter(o => !query || (o.full_name || '').toLowerCase().includes(query));
+        window.OFFICIALS_CACHE = officials;
+        if (window.loadRatingScheduleStatus) await window.loadRatingScheduleStatus(true);
+        if (window.loadRatingSummary) await window.loadRatingSummary(true);
+
+        if(document.getElementById('res-map') && !window.MAP_INIT) {
+            const allUsers = [...window.MEMBERS_CACHE, ...window.OFFICIALS_CACHE];
+            window.initGlobalMap('res-map', allUsers, true);
+            window.MAP_INIT = true;
+        }
+        let offHtml = '';
+        officials.forEach(o => {
+            offHtml += `<div style="padding:15px; border:1px solid var(--card-border); border-radius:15px; background:rgba(255,255,255,0.02); margin-bottom:15px;">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                    <img src="${o.pic_url || '/static/default-avatar.svg'}" style="width:50px;height:50px;border-radius:50%;object-fit:cover; border: 2px solid var(--primary);">
+                    <div>
+                        <b style="font-size:16px;">${o.full_name}</b><br>
+                        <span style="color:var(--primary); font-size:12px; font-weight:700;">${(o.position || 'Barangay Official').toUpperCase()}</span>
+                        ${window.buildVoteStatsHtml ? window.buildVoteStatsHtml(o.id) : ''}
+                    </div>
+                </div>
+                <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="font-size:13px;">Official Rating (1-5)</span>
+                        <b id="val-label-${o.id}" style="color:var(--warning)">5.0</b>
+                    </div>
+                    <input type="range" id="rating-${o.id}" min="1" max="5" step="1" value="5" style="width:100%; accent-color:var(--warning);" oninput="document.getElementById('val-label-${o.id}').innerText = parseFloat(this.value).toFixed(1)">
+                    <textarea id="fb-${o.id}" class="input-field" placeholder="Share your feedback..." rows="2" style="margin-top:10px; font-size:13px;"></textarea>
+                    ${window.buildRatingActionHtml ? window.buildRatingActionHtml(o.id) : `<button class="btn btn-primary" style="width:100%; margin-top:5px; padding:8px;" onclick="submitIndividualRating(${o.id})">Rate Official</button>`}
+                </div>
+            </div>`;
+        });
+        if(document.getElementById('officials-list')) document.getElementById('officials-list').innerHTML = offHtml || 'No officials registered yet.';
+    }
+
+    async function loadHistory() {
+        const res = await fetch('/api/history');
+        const data = await res.json();
+        let html = '';
+        data.forEach(h => {
+            html += `<div style="padding:15px; border-radius:8px; border-left:4px solid var(--primary); background:rgba(255,255,255,0.02); margin-bottom:10px;">
+                <p style="margin:0; font-size:15px;">${h.action}</p>
+                <small class="text-muted">${formatPhilippineDateTime(h.timestamp)}</small>
+            </div>`;
+        });
+        if(document.getElementById('history-box')) document.getElementById('history-box').innerHTML = html || '<p class="text-muted">No history logs yet.</p>';
+    }
+
+    let hotspotLayers = [];
+    let aiActiveType = null;
+    window.toggleAIHotspots = async function(type = null) {
+        const map = window.GLOBAL_MAP_INSTANCE;
+        if(!map) return alert("Map not ready.");
+
+        hotspotLayers.forEach(l => map.removeLayer(l));
+        hotspotLayers = [];
+
+        window.AI_ANALYSIS_ITERATIONS = window.AI_ANALYSIS_ITERATIONS || {};
+        const analysisKey = type || 'all';
+        const iteration = window.AI_ANALYSIS_ITERATIONS[analysisKey] || 0;
+        window.AI_ANALYSIS_ITERATIONS[analysisKey] = iteration + 1;
+
+        const url = type
+            ? `/api/emergency/analysis?type=${type}&iteration=${iteration}`
+            : `/api/emergency/analysis?iteration=${iteration}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        if(data.success) {
+            if (window.renderAiCommunityAnalysis) {
+                window.renderAiCommunityAnalysis(data);
+            } else {
+                document.getElementById('ai-insight-box').innerText = data.insight;
+                document.getElementById('ai-insight-box').style.display = 'block';
+            }
+            
+            data.hotspots.forEach(h => {
+                const circleColor = h.risk_level === 'critical' ? '#dc2626' : (h.risk_level === 'high' ? '#f97316' : '#facc15');
+                const purokLabel = h.purok && h.purok !== 'Unknown' ? `Purok ${h.purok}` : 'Mapped zone';
+                const householdsText = h.nearby_households ? `<br/>Nearby households: ${h.nearby_households}` : '';
+                const noteText = h.predictive_note ? `<br/>${h.predictive_note}` : '';
+                const validationText = h.validation_note ? `<br/><small>${h.validation_note}</small>` : '';
+                const circle = L.circle([h.lat, h.lng], {
+                    color: circleColor,
+                    weight: 3,
+                    opacity: 0.8,
+                    fillColor: circleColor,
+                    fillOpacity: 0.35,
+                    radius: h.radius,
+                    className: 'hotspot-circle'
+                }).addTo(map);
+                circle.bindPopup(`<b><i class="fa-solid fa-triangle-exclamation"></i> ${h.risk_label || 'Prone Area'} (${purokLabel})</b><br/>AI detected ${h.count} recurring report(s) here.${householdsText}${noteText}${validationText}`);
+                hotspotLayers.push(circle);
+            });
+            aiActiveType = type || 'all';
+        }
+    };
+
+    window.addEventListener('tabChanged', (e) => {
+        const tab = typeof e.detail === 'string' ? e.detail : e.detail.tabId;
+        if(tab === 'maps' && window.MAP_INIT) {
+            // Give it time to display block before invalidating size
+            setTimeout(() => { if(window.L && L.Map) window.dispatchEvent(new Event('resize')); }, 100);
+        }
+    });
+
+    loadResidentHome();
+</script>
+{% endblock %}

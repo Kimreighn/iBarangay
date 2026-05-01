@@ -1,0 +1,2192 @@
+{% extends 'base.html' %}
+{% block content %}
+<div id="tab-home" class="tab-section active">
+    <div class="dashboard-grid">
+        <div class="glass-card bio-home-feed-card" style="grid-column: span 2;">
+            <h3>Community News Feed</h3>
+            <div class="post-box-container bio-home-post-box">
+                <div class="post-box-header">
+                    <img src="{{ user.pic_url if user and user.pic_url else url_for('static', filename='default-avatar.svg') }}" class="user-avatar-sm" onerror="this.src='{{ url_for('static', filename='default-avatar.svg') }}'">
+                    <textarea id="news-content" class="post-textarea" placeholder="What's happening..."></textarea>
+                </div>
+                
+                <div id="media-preview-container" class="media-preview-grid"></div>
+                <div id="mention-preview-container" class="mention-tags-container"></div>
+                <div id="location-preview" class="location-tag" style="display:none;"></div>
+
+                <div class="post-box-actions">
+                    <button class="action-btn" onclick="document.getElementById('news-media').click()" title="Photo/Video">
+                        <i class="fa-solid fa-image" style="color: #45bd62;"></i> Photo/Video
+                    </button>
+                    <button class="action-btn" onclick="toggleMentionSearch()" title="Tag People">
+                        <i class="fa-solid fa-user-tag" style="color: #1877f2;"></i> Tag People
+                    </button>
+                    <button class="action-btn" onclick="attachCurrentLocation()" title="Check In">
+                        <i class="fa-solid fa-location-dot" style="color: #f3425f;"></i> Check In
+                    </button>
+                    <input type="file" id="news-media" style="display:none;" multiple accept="image/*,video/*" onchange="handleMediaSelection(event)">
+                </div>
+                
+                <div id="mention-search-box" class="mention-search-results" style="display:none;">
+                    <input type="text" id="mention-input" class="input-field-sm" placeholder="Search people..." oninput="searchMentions(this.value)">
+                    <div id="mention-list"></div>
+                </div>
+                <div id="location-search-box" class="mention-search-results location-search-results" style="display:none;">
+                    <div class="location-search-toolbar">
+                        <input type="text" id="location-input" class="input-field-sm" placeholder="Search location..." oninput="searchPostLocations(this.value)">
+                        <button type="button" class="location-search-action" onclick="refreshCurrentLocationSuggestion()">Use My Spot</button>
+                    </div>
+                    <div id="location-list"></div>
+                </div>
+
+                <button class="btn btn-primary bio-home-post-submit" style="width:100%; margin-top:15px; font-weight:800;" onclick="postNews()">Post to Feed</button>
+            </div>
+            
+            <div id="news-feed-box" class="bio-home-feed-list" style="margin-top:15px; padding-right:10px;">
+                <p class="text-muted">Loading feed...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-members" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 2;">
+            <h3>Barangay Member Directory 👥</h3>
+            <p class="text-muted">Full internal directory of barangay members.</p>
+            <div id="members-list" style="margin-top:15px; display:grid; gap:10px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));"></div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-add" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 2; border-color:var(--primary)">
+            <h3 style="color:var(--primary)">Register Member Account 👤</h3>
+            <p class="text-muted" style="font-size:13px; margin-bottom:10px;">Register any member to the barangay directory. If needed, you can also mark an official account as an additional BIO.</p>
+            
+            <div style="display: flex; gap: 10px; flex-wrap:wrap; margin-bottom:10px;">
+                <input type="text" id="r-name" class="input-field" placeholder="Full Name" style="flex:1; min-width: 150px;">
+                <input type="email" id="r-user" class="input-field" placeholder="Email Address" style="flex:1; min-width: 150px;">
+                <div style="flex:1; min-width: 150px; position:relative;">
+                    <input type="password" id="r-pass" class="input-field" placeholder="Password" style="width:100%; padding-right:42px;">
+                    <button
+                        type="button"
+                        id="r-pass-toggle"
+                        class="password-toggle-btn"
+                        aria-label="Password hidden"
+                        aria-pressed="false"
+                        onclick="togglePasswordVisibility('r-pass', this)"
+                        style="position:absolute; right:8px; top:50%; transform:translateY(-50%); border:none; background:transparent; color:var(--text); cursor:pointer; padding:0; font-size:1rem;"
+                    >
+                        <i class="fa-regular fa-eye-slash"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px; flex-wrap:wrap; margin-bottom:10px;">
+                <select id="r-role" class="input-field" style="flex:1; min-width: 150px;" onchange="if(this.value!=='resident') document.getElementById('r-pos').style.display='block'; else document.getElementById('r-pos').style.display='none';">
+                    <option value="resident">Resident</option>
+                    <option value="purok_official">Purok Official</option>
+                    <option value="brgy_official">Barangay Official</option>
+                    <option value="bio">Additional BIO</option>
+                </select>
+                <input type="text" id="r-pos" class="input-field" placeholder="Specific Position (e.g. Treasurer)" style="flex:1; min-width: 150px; display:none;">
+            </div>
+
+            <div style="display: flex; gap: 10px; flex-wrap:wrap; margin-bottom:10px;">
+                <input type="date" id="r-bdate" class="input-field" style="flex:1; min-width: 150px;">
+                <input type="text" id="r-bplace" class="input-field" placeholder="Birthplace" style="flex:1; min-width: 150px;">
+                <input type="number" id="r-purok" class="input-field" placeholder="Purok (e.g. 2)" style="flex:1; min-width: 150px;">
+                <select id="r-emp" class="input-field" style="flex:1; min-width: 150px;">
+                    <option value="unspecified">Employment Status...</option>
+                    <option value="employed">Employed</option>
+                    <option value="unemployed">Unemployed</option>
+                    <option value="student">Student</option>
+                </select>
+            </div>
+            
+            <div style="display: flex; gap: 10px; flex-wrap:wrap; margin-bottom:10px;">
+                <input type="text" id="r-mother" class="input-field" placeholder="Mother's Full Name" style="flex:1; min-width: 150px;">
+                <input type="text" id="r-father" class="input-field" placeholder="Father's Full Name" style="flex:1; min-width: 150px;">
+                <input type="file" id="r-pic" class="input-field" accept="image/*" style="flex:1; min-width: 150px; padding: 9px;" title="Profile Picture">
+            </div>
+
+            <div style="display: flex; gap: 10px; flex-wrap:wrap; margin-bottom:10px;">
+                <input type="number" id="r-fsize" class="input-field" placeholder="Family Size" style="flex:1; min-width: 150px;">
+                <div style="flex:1; min-width: 150px; position:relative;">
+                    <input type="number" id="r-income" class="input-field" placeholder="Monthly Income ₱" oninput="updateClassLabel(this.value, 'r-class-tag')">
+                    <span id="r-class-tag" style="position:absolute; right:10px; top:12px; font-size:12px; color:var(--primary); font-weight:800;"></span>
+                </div>
+            </div>
+
+            <div style="margin-bottom:10px;">
+                <p style="font-size:13px; margin-bottom:5px;">Pin Exact Household Location 📍</p>
+                <div id="add-pin-map" style="width: 100%; height: 200px; background: rgba(0,0,0,0.2); border-radius: 10px; border: 1px dashed var(--secondary);"></div>
+                <input type="hidden" id="r-lat">
+                <input type="hidden" id="r-lng">
+            </div>
+
+            <button class="btn btn-primary" style="width:100%" onclick="registerMember()">Create Member & Sync Directory</button>
+        </div>
+
+        <div class="glass-card bio-finance-card">
+            <h3>Upload Financial Report 💰</h3>
+            <input type="number" id="f-month" class="input-field" placeholder="Month (1-12)">
+            <input type="number" id="f-year" class="input-field" placeholder="Year (e.g. 2026)">
+            <input type="number" id="f-total" class="input-field" placeholder="Total Budget (₱)">
+            <input type="number" id="f-relief" class="input-field" placeholder="Relief Exps. (₱)">
+            <input type="number" id="f-project" class="input-field" placeholder="Project Exps. (₱)">
+            <button class="btn btn-primary" onclick="uploadFinance()">Generate AI Summary & Publish</button>
+            <p id="f-summary" style="margin-top:10px; font-size:14px; color:var(--secondary)"></p>
+        </div>
+
+        <div class="glass-card bio-relief-card">
+            <h3>AI Relief Calculator 🧠</h3>
+            <input type="number" id="r-budget" class="input-field" placeholder="Total Budget to Allocate (₱)">
+            <button class="btn btn-warning" onclick="calcRelief()">Calculate Fair Distribution</button>
+            <div id="r-results" style="margin-top:15px; font-size:14px; line-height: 1.6; max-height: 200px; overflow-y:auto;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-welfare" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card bio-welfare-form-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                <div>
+                    <h3>Welfare Distribution Module</h3>
+                    <p class="text-muted" style="font-size:13px; margin:0;">Centralize barangay aid records, beneficiary status, and release notes in one operational view.</p>
+                </div>
+                <span class="search-chip">BIO Access</span>
+            </div>
+            <input type="hidden" id="welfare-record-id">
+            <div style="margin-top:15px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <label style="font-size:13px; color:var(--text-muted); font-weight:700;">Beneficiaries</label>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                        <small id="welfare-selected-count" class="text-muted">0 selected</small>
+                        <button type="button" class="btn btn-secondary btn-compact" style="padding:6px 10px; font-size:11px;" onclick="window.selectAllVisibleWelfareResidents && window.selectAllVisibleWelfareResidents()">Select Visible</button>
+                        <button type="button" class="btn btn-secondary btn-compact" style="padding:6px 10px; font-size:11px;" onclick="window.clearWelfareResidentSelection && window.clearWelfareResidentSelection()">Clear</button>
+                    </div>
+                </div>
+                <input type="text" id="welfare-resident-search" class="input-field" placeholder="Search residents to add multiple beneficiaries..." oninput="window.renderWelfareResidentPicker && window.renderWelfareResidentPicker()">
+                <div id="welfare-resident-preview" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;"></div>
+                <div id="welfare-resident-options" class="welfare-resident-options" style="margin-top:10px; max-height:220px; overflow-y:auto; display:grid; gap:8px;"></div>
+                <small class="text-muted" style="display:block; margin-top:8px;">One submit creates one welfare record per selected beneficiary using the same assistance details.</small>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <input type="text" id="welfare-type" class="input-field" placeholder="Assistance Type (e.g. Food Pack)" style="flex:1; min-width:180px;">
+                <input type="text" id="welfare-program" class="input-field" placeholder="Program / Batch Name" style="flex:1; min-width:180px;">
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <input type="number" id="welfare-amount" class="input-field" placeholder="Amount (PHP)" min="0" step="0.01" style="flex:1; min-width:150px;">
+                <input type="number" id="welfare-quantity" class="input-field" placeholder="Quantity" min="0" step="0.1" style="flex:1; min-width:120px;">
+                <input type="text" id="welfare-unit" class="input-field" placeholder="Unit (packs, kg, etc.)" style="flex:1; min-width:150px;">
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <select id="welfare-status" class="input-field" style="flex:1; min-width:150px;">
+                    <option value="planned">Planned</option>
+                    <option value="approved">Approved</option>
+                    <option value="released">Released</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+                <input type="date" id="welfare-date" class="input-field" style="flex:1; min-width:150px;">
+                <input type="text" id="welfare-source" class="input-field" placeholder="Source of Funds" style="flex:1; min-width:160px;">
+            </div>
+            <input type="text" id="welfare-reference" class="input-field" placeholder="Reference Code (optional)">
+            <textarea id="welfare-notes" class="input-field" placeholder="Notes, release remarks, or beneficiary details..." rows="4"></textarea>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button class="btn btn-primary" style="flex:1;" onclick="window.saveWelfareDistribution && window.saveWelfareDistribution()">Save Welfare Record</button>
+                <button class="btn btn-secondary" style="flex:1;" onclick="window.resetWelfareForm && window.resetWelfareForm()">Clear Form</button>
+            </div>
+        </div>
+        <div class="glass-card bio-welfare-tracker-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                <div>
+                    <h3>Distribution Tracker</h3>
+                    <p class="text-muted" style="font-size:13px; margin:0;">Review upcoming releases, completed distributions, and beneficiary coverage.</p>
+                </div>
+                <button class="btn btn-secondary" style="padding:8px 12px;" onclick="window.loadWelfareModule && window.loadWelfareModule(true)">Refresh</button>
+            </div>
+            <div id="welfare-summary-box" style="margin-top:15px;"></div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:15px;">
+                <input type="text" id="welfare-search" class="input-field" placeholder="Search resident, type, or reference..." style="flex:1; min-width:200px; margin:0;" oninput="window.renderWelfareRecords && window.renderWelfareRecords()">
+                <select id="welfare-filter-status" class="input-field" style="min-width:170px; margin:0;" onchange="window.renderWelfareRecords && window.renderWelfareRecords()">
+                    <option value="">All statuses</option>
+                </select>
+            </div>
+            <div id="welfare-records-box" style="margin-top:15px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-report" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card bio-notification-card" style="grid-column: span 2;">
+            <h2>Barangay Health & Incidents Report 🚨</h2>
+            <p class="text-muted">Monitor and report incidents manually.</p>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="btn btn-danger" style="flex:1" onclick="triggerEmergency('accident')">⚠️ Report Accident</button>
+                <button class="btn btn-danger" style="flex:1; background:#f43f5e" onclick="triggerEmergency('health')">❤️ Report Health Issue</button>
+            </div>
+            
+            <h3 style="margin-top:30px;">Pending Emergency Alerts</h3>
+            <button class="btn btn-warning" onclick="refreshEmergencyPanels()">Refresh Emergencies</button>
+            <div id="emg-box" style="margin-top: 15px;"></div>
+
+            <h3 style="margin-top:30px;">Previously Acknowledged Emergencies</h3>
+            <div id="emg-history-box" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="edit-post-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:99999; overflow-y:auto; padding:20px;">
+    <div class="glass-card" style="max-width:500px; margin: 40px auto; position:relative;">
+        <button class="btn" style="position:absolute; right:10px; top:10px; background:var(--danger);" onclick="document.getElementById('edit-post-modal').style.display='none'">X</button>
+        <h3>Edit Post</h3>
+        <input type="hidden" id="ep-id">
+        <textarea id="ep-content" class="input-field" rows="5" style="margin-top:15px;"></textarea>
+        <div id="ep-media-preview-container" class="media-preview-grid"></div>
+        <div id="ep-mention-preview-container" class="mention-tags-container"></div>
+        <div id="ep-location-preview" class="location-tag" style="display:none;"></div>
+        <div class="post-box-actions" style="margin-top:10px;">
+            <button class="action-btn" onclick="document.getElementById('ep-media').click()" title="Photo/Video">
+                <i class="fa-solid fa-image" style="color: #45bd62;"></i> Photo/Video
+            </button>
+            <button class="action-btn" onclick="toggleEditMentionSearch()" title="Tag People">
+                <i class="fa-solid fa-user-tag" style="color: #1877f2;"></i> Tag People
+            </button>
+            <button class="action-btn" onclick="attachEditLocation()" title="Check In">
+                <i class="fa-solid fa-location-dot" style="color: #f3425f;"></i> Check In
+            </button>
+            <input type="file" id="ep-media" style="display:none;" multiple accept="image/*,video/*" onchange="handleEditMediaSelection(event)">
+        </div>
+        <div id="ep-mention-search-box" class="mention-search-results" style="display:none;">
+            <input type="text" id="ep-mention-input" class="input-field-sm" placeholder="Search people..." oninput="searchEditMentions(this.value)">
+            <div id="ep-mention-list"></div>
+        </div>
+        <div id="ep-location-search-box" class="mention-search-results location-search-results" style="display:none;">
+            <div class="location-search-toolbar">
+                <input type="text" id="ep-location-input" class="input-field-sm" placeholder="Search location..." oninput="searchPostLocations(this.value, 'edit')">
+                <button type="button" class="location-search-action" onclick="refreshCurrentLocationSuggestion('edit')">Use My Spot</button>
+            </div>
+            <div id="ep-location-list"></div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;" onclick="savePostEdit()">Save Changes</button>
+    </div>
+</div>
+
+<div id="tab-officials" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 1;">
+            <h3>AI Feedback Analysis ⭐</h3>
+            <button class="btn btn-secondary" style="background:#10b981; color:#fff" onclick="analyzeFeedback()">Run AI Analysis</button>
+            <p id="feedback-results" style="margin-top:15px; font-size:14px; line-height: 1.6;"></p>
+        </div>
+        <div class="glass-card" style="grid-column: span 1;">
+            <h3>Official Rating Schedule</h3>
+            <p class="text-muted" style="font-size:13px;">Choose two calendar windows for the year. Members can rate each official up to twice per year.</p>
+            <div id="rating-schedule-status" style="padding:10px; border-radius:10px; background:rgba(255,255,255,0.04); margin-bottom:10px; font-size:13px;"></div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <label style="font-size:12px; color:var(--text-muted);">First window start<input type="date" id="rating-window1-start" class="input-field"></label>
+                <label style="font-size:12px; color:var(--text-muted);">First window end<input type="date" id="rating-window1-end" class="input-field"></label>
+                <label style="font-size:12px; color:var(--text-muted);">Second window start<input type="date" id="rating-window2-start" class="input-field"></label>
+                <label style="font-size:12px; color:var(--text-muted);">Second window end<input type="date" id="rating-window2-end" class="input-field"></label>
+            </div>
+            <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="saveRatingSchedule()">Save Rating Schedule</button>
+        </div>
+        <div class="glass-card" style="grid-column: span 1;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h3 style="color:var(--primary)">Barangay Officials 👔</h3>
+                <button class="btn btn-secondary" style="padding:8px 12px;" onclick="openRatingSummary()">View Vote Summary</button>
+                <input type="text" id="off-search" class="input-field" placeholder="Search official name..." style="max-width:200px; margin:0;" oninput="renderOfficialsList(this.value)">
+            </div>
+            <p class="text-muted" style="font-size:14px; margin-bottom:15px;">Evaluate specific officials to improve governance. Processed by AI.</p>
+            <div id="officials-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-notification" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 2;">
+            <h3>Broadcast Announcement 📢</h3>
+            <p class="text-muted" style="font-size:13px;">Choose either one or more puroks, or search names for specific members. If names are selected, purok targeting is cleared.</p>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+                <strong style="font-size:13px;">Target Purok:</strong>
+                <label class="mention-tag announcement-purok-chip" style="cursor:pointer;"><input type="checkbox" id="ann-purok-all" checked onchange="toggleAllAnnouncementPuroks(this.checked)"> All</label>
+                <div id="ann-purok-options" class="announcement-purok-options" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+            </div>
+            <div id="ann-target-preview-container" class="mention-tags-container"></div>
+            <div style="position:relative; margin-bottom:10px; max-width:420px;">
+                <input type="text" id="ann-target-input" class="input-field-sm" placeholder="Search names to target specific members..." oninput="searchAnnouncementTargets(this.value)">
+                <div id="ann-target-list" style="display:none; background:#1c1e21; border:1px solid var(--card-border); border-radius:10px; margin-top:5px; max-height:190px; overflow-y:auto; box-shadow:0 10px 30px rgba(0,0,0,0.35);"></div>
+            </div>
+            <textarea id="ann-msg" class="input-field" rows="3" placeholder="Enter emergency or event announcement"></textarea>
+            <input type="hidden" id="ann-edit-id">
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn btn-primary" onclick="broadcast()" id="ann-submit-btn">Send Broadcast</button>
+                <button class="btn btn-secondary" onclick="resetAnnouncementForm()" type="button">Clear</button>
+            </div>
+            <h4 style="margin-top:24px;">Sent Broadcasts</h4>
+            <div id="bio-announcements-list" style="margin-top:10px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-maps" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 2;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <h3>Barangay Map Directory 🗺️</h3>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-secondary" style="background:var(--secondary); color:#fff; padding: 5px 15px; font-size:12px;" onclick="toggleAIHotspots('health')">
+                        <i class="fa-solid fa-heart-pulse"></i> Health AI
+                    </button>
+                    <button class="btn btn-secondary" style="background:var(--danger); color:#fff; padding: 5px 15px; font-size:12px;" onclick="toggleAIHotspots()">
+                        <i class="fa-solid fa-brain"></i> All AI Analysis
+                    </button>
+                </div>
+            </div>
+            <p class="text-muted">Master Editor view. See all residents and assign households. The AI component highlights recurring incident patterns and potential community health risks.</p>
+            <div id="ai-insight-box" style="display:none; background:rgba(239, 68, 68, 0.1); border:1px solid var(--danger); padding:10px; border-radius:10px; margin-bottom:10px; font-size:14px; color:var(--text-light); animation: fadeIn 0.5s ease;"></div>
+            <div id="ai-analysis-details" class="ai-analysis-panel" style="display:none;"></div>
+            <div id="bio-map" style="width: 100%; height: 400px; background: rgba(0,0,0,0.2); border-radius: 10px; border: 1px dashed var(--secondary); z-index:0;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="tab-history" class="tab-section">
+    <div class="dashboard-grid">
+        <div class="glass-card" style="grid-column: span 2;">
+            <h3>Activity History Log 🕒</h3>
+            <p class="text-muted">Master record of your systemic actions.</p>
+            <div id="history-box" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+</div>
+
+<div id="edit-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; overflow-y:auto; padding:20px;">
+    <div class="glass-card" style="max-width:500px; margin: 40px auto; position:relative;">
+        <button class="btn" style="position:absolute; right:10px; top:10px; background:var(--danger);" onclick="document.getElementById('edit-modal').style.display='none'">X</button>
+        <h3 id="edit-title">Edit Member</h3>
+        <input type="hidden" id="e-id">
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <input type="text" id="e-name" class="input-field" placeholder="Full Name" style="flex:1;">
+            <input type="email" id="e-user" class="input-field" placeholder="Email Address" style="flex:1;">
+        </div>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <input type="password" id="e-pass" class="input-field" placeholder="New Password (Optional)" style="flex:1;">
+            <select id="e-role" class="input-field" style="flex:1;">
+                <option value="resident">Resident</option>
+                <option value="official">Official</option>
+                <option value="bio">BIO</option>
+            </select>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <input type="date" id="e-bdate" class="input-field" style="flex:1;">
+            <input type="text" id="e-bplace" class="input-field" placeholder="Birthplace" style="flex:1;">
+        </div>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <input type="number" id="e-purok" class="input-field" placeholder="Purok" style="flex:1;">
+            <select id="e-emp" class="input-field" style="flex:1;">
+                <option value="unspecified">Employment...</option>
+                <option value="employed">Employed</option>
+                <option value="unemployed">Unemployed</option>
+                <option value="student">Student</option>
+            </select>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <input type="text" id="e-mother" class="input-field" placeholder="Mother's Name" style="flex:1;">
+            <input type="text" id="e-father" class="input-field" placeholder="Father's Name" style="flex:1;">
+        </div>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <div style="flex:1; position:relative;">
+                <input type="number" id="e-income" class="input-field" placeholder="Monthly Income" oninput="updateClassLabel(this.value, 'e-class-tag')">
+                <span id="e-class-tag" style="position:absolute; right:10px; top:12px; font-size:12px; color:var(--primary); font-weight:800;"></span>
+            </div>
+            <input type="text" id="e-pos" class="input-field" placeholder="Position (for officials)" style="flex:1;">
+        </div>
+        <input type="file" id="e-pic" class="input-field" accept="image/*" style="width:100%; margin-top:10px; padding:9px;">
+        <div style="margin-top:10px;">
+            <p style="font-size:13px; margin-bottom:5px;">Update House Location 📍</p>
+            <div id="edit-pin-map" style="width: 100%; height: 200px; background: rgba(0,0,0,0.2); border-radius: 10px; border: 1px dashed var(--secondary);"></div>
+            <input type="hidden" id="e-lat">
+            <input type="hidden" id="e-lng">
+        </div>
+        <button class="btn btn-primary" style="width:100%; margin-top:15px;" onclick="saveEdit()">Save Changes</button>
+        <button id="delete-member-btn" class="btn btn-danger" style="width:100%; margin-top:10px; background:rgba(239, 68, 68, 0.4);" onclick="deleteMember()">Delete Account</button>
+    </div>
+</div>
+
+<div id="emg-map-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; padding:20px;">
+    <div class="glass-card" style="max-width:600px; margin: 40px auto; position:relative;">
+        <button class="btn" style="position:absolute; right:10px; top:10px; background:var(--danger); z-index:1000;" onclick="document.getElementById('emg-map-modal').style.display='none'">X</button>
+        <h3 id="emg-map-title">Emergency Location</h3>
+        <p id="emg-map-subtitle" class="text-muted"></p>
+        <div id="emg-pin-map" style="width: 100%; height: 300px; background: rgba(0,0,0,0.2); border-radius: 10px; border: 1px dashed var(--secondary); z-index:0;"></div>
+    </div>
+</div>
+
+<script>
+    function togglePasswordVisibility(inputId, trigger) {
+        const input = document.getElementById(inputId);
+        if (!input || !trigger) return;
+
+        const willShow = input.type === 'password';
+        input.type = willShow ? 'text' : 'password';
+        trigger.setAttribute('aria-label', willShow ? 'Password visible' : 'Password hidden');
+        trigger.setAttribute('aria-pressed', willShow ? 'true' : 'false');
+
+        const icon = trigger.querySelector('i');
+        if (icon) {
+            icon.className = willShow ? 'fa-regular fa-eye' : 'fa-regular fa-eye-slash';
+        }
+    }
+
+    const bioTabState = {
+        homeLoaded: false,
+        membersLoaded: false,
+        welfareLoaded: false,
+        officialsLoaded: false,
+        reportLoaded: false,
+        historyLoaded: false,
+        mapLoaded: false
+    };
+    let selectedAnnouncementTargets = [];
+    let selectedAnnouncementPuroks = [];
+    let availableAnnouncementPuroks = [];
+
+    async function registerMember() {
+        let picUrl = '';
+        const picInput = document.getElementById('r-pic');
+        if(picInput.files.length > 0) {
+            const formData = new FormData();
+            formData.append('file', picInput.files[0]);
+            const upRes = await fetch('/api/upload_image', {method: 'POST', body: formData});
+            const upData = await upRes.json();
+            if(upData.success) picUrl = upData.url;
+        }
+
+        const body = {
+            full_name: document.getElementById('r-name').value,
+            username: document.getElementById('r-user').value,
+            password: document.getElementById('r-pass').value,
+            role: document.getElementById('r-role').value,
+            position: document.getElementById('r-pos').value,
+            birthdate: document.getElementById('r-bdate').value,
+            birthplace: document.getElementById('r-bplace').value,
+            purok: document.getElementById('r-purok').value,
+            employment_status: document.getElementById('r-emp').value,
+            mother_name: document.getElementById('r-mother').value,
+            father_name: document.getElementById('r-father').value,
+            family_size: document.getElementById('r-fsize').value,
+            monthly_income: document.getElementById('r-income').value,
+            lat: document.getElementById('r-lat').value,
+            lng: document.getElementById('r-lng').value,
+            pic_url: picUrl
+        };
+        const res = await fetch('/api/bio/member', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+        });
+        const d = await res.json();
+        if (d.success) {
+            alert("Entry Created! Directory System Reset.");
+            window.MENTION_CANDIDATES = null;
+            loadMembers();
+            ['r-name','r-user','r-pass','r-pos','r-bdate','r-bplace','r-purok','r-emp','r-mother','r-father','r-fsize','r-income','r-lat','r-lng','r-pic'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) { if (el.tagName === 'SELECT') el.selectedIndex = 0; else el.value = ''; }
+            });
+            document.getElementById('r-role').selectedIndex = 0;
+            document.getElementById('r-pos').style.display = 'none';
+            if(addPinMarker && addPinMap) addPinMap.removeLayer(addPinMarker);
+        } else alert("Error: " + d.error);
+    }
+
+    async function broadcast() {
+        const msg = document.getElementById('ann-msg').value;
+        const editId = document.getElementById('ann-edit-id').value;
+        const method = editId ? 'PUT' : 'POST';
+        const url = editId ? `/api/announcements/${editId}` : '/api/announcements';
+        const targetUsers = selectedAnnouncementTargets.map(target => ({ id: target.id, name: target.name }));
+        const res = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: msg,
+                target_puroks: targetUsers.length ? [] : selectedAnnouncementPuroks,
+                target_users: targetUsers
+            })
+        });
+        const data = await res.json();
+        if (!data.success) {
+            alert(data.error || 'Unable to save broadcast.');
+            return;
+        }
+        alert(editId ? 'Broadcast updated!' : 'Broadcast sent!');
+        resetAnnouncementForm();
+        loadBioAnnouncements();
+    }
+
+    async function searchAnnouncementTargets(query) {
+        const list = document.getElementById('ann-target-list');
+        if(!query) { list.innerHTML = ''; list.style.display = 'none'; return; }
+        const all = await loadMentionCandidates();
+        const filtered = all.filter(u => u.full_name.toLowerCase().includes(query.toLowerCase())).slice(0, 6);
+        list.style.display = filtered.length ? 'block' : 'none';
+        list.innerHTML = filtered.map(u => `
+            <div class="mention-item" onclick='addAnnouncementTarget(${JSON.stringify(u.id ?? null)}, ${JSON.stringify(u.full_name)})'>
+                <img src="${u.pic_url || '/static/default-avatar.svg'}" style="width:30px; height:30px; border-radius:50%;">
+                <span>${u.full_name}</span>
+            </div>
+        `).join('');
+    }
+
+    function addAnnouncementTarget(id, name) {
+        if(mentionExists(selectedAnnouncementTargets, id, name)) return;
+        selectedAnnouncementTargets.push({id, name});
+        selectedAnnouncementPuroks = [];
+        renderAnnouncementPuroks();
+        renderAnnouncementTargets();
+        document.getElementById('ann-target-input').value = '';
+        document.getElementById('ann-target-list').innerHTML = '';
+        document.getElementById('ann-target-list').style.display = 'none';
+    }
+
+    function removeAnnouncementTarget(index) {
+        selectedAnnouncementTargets.splice(index, 1);
+        renderAnnouncementTargets();
+    }
+
+    function renderAnnouncementTargets() {
+        const container = document.getElementById('ann-target-preview-container');
+        if (!container) return;
+        container.innerHTML = selectedAnnouncementTargets.map((target, index) => `
+            <div class="mention-tag">@${target.name} <span style="cursor:pointer" onclick="removeAnnouncementTarget(${index})">&times;</span></div>
+        `).join('');
+    }
+
+    function resetAnnouncementForm() {
+        document.getElementById('ann-edit-id').value = '';
+        document.getElementById('ann-msg').value = '';
+        document.getElementById('ann-target-input').value = '';
+        document.getElementById('ann-target-list').innerHTML = '';
+        document.getElementById('ann-target-list').style.display = 'none';
+        document.getElementById('ann-submit-btn').innerText = 'Send Broadcast';
+        selectedAnnouncementTargets = [];
+        selectedAnnouncementPuroks = [];
+        loadAnnouncementPurokOptions();
+        renderAnnouncementPuroks();
+        renderAnnouncementTargets();
+    }
+
+    async function loadAnnouncementPurokOptions(force = false) {
+        if (!force && availableAnnouncementPuroks.length) return availableAnnouncementPuroks;
+        const res = await fetch('/api/members');
+        const members = await res.json();
+        availableAnnouncementPuroks = [...new Set(
+            members
+                .map(member => parseInt(member.purok))
+                .filter(value => Number.isInteger(value) && value > 0)
+        )].sort((a, b) => a - b);
+        if (!availableAnnouncementPuroks.length) availableAnnouncementPuroks = [1, 2, 3, 4, 5, 6, 7];
+        renderAnnouncementPuroks();
+        return availableAnnouncementPuroks;
+    }
+
+    function renderAnnouncementPuroks() {
+        const box = document.getElementById('ann-purok-options');
+        const allToggle = document.getElementById('ann-purok-all');
+        if (!box || !allToggle) return;
+        allToggle.checked = selectedAnnouncementTargets.length === 0 && selectedAnnouncementPuroks.length === 0;
+        const disabled = selectedAnnouncementTargets.length > 0;
+        box.innerHTML = availableAnnouncementPuroks.map(purok => `
+            <label class="mention-tag announcement-purok-chip" style="cursor:${disabled ? 'not-allowed' : 'pointer'}; opacity:${disabled ? '0.45' : '1'};">
+                <input type="checkbox" value="${purok}" ${selectedAnnouncementPuroks.includes(purok) ? 'checked' : ''} ${disabled ? 'disabled' : ''} onchange="toggleAnnouncementPurok(${purok}, this.checked)">
+                Purok ${purok}
+            </label>
+        `).join('');
+    }
+
+    function toggleAllAnnouncementPuroks(checked) {
+        if (selectedAnnouncementTargets.length) return;
+        selectedAnnouncementPuroks = checked ? [] : selectedAnnouncementPuroks;
+        renderAnnouncementPuroks();
+    }
+
+    function toggleAnnouncementPurok(purok, checked) {
+        if (selectedAnnouncementTargets.length) return;
+        if (checked && !selectedAnnouncementPuroks.includes(purok)) selectedAnnouncementPuroks.push(purok);
+        if (!checked) selectedAnnouncementPuroks = selectedAnnouncementPuroks.filter(item => item !== purok);
+        selectedAnnouncementPuroks.sort((a, b) => a - b);
+        renderAnnouncementPuroks();
+    }
+
+    async function loadBioAnnouncements() {
+        const res = await fetch('/api/announcements');
+        const data = await res.json();
+        const box = document.getElementById('bio-announcements-list');
+        if (!box) return;
+        box.innerHTML = data.map(announcement => {
+            const targetNames = Array.isArray(announcement.target_names) && announcement.target_names.length
+                ? announcement.target_names.map(name => `@${escapeHtml(name)}`).join(', ')
+                : 'All members';
+            const puroks = Array.isArray(announcement.target_puroks) && announcement.target_puroks.length
+                ? announcement.target_puroks.map(purok => `Purok ${escapeHtml(purok)}`).join(', ')
+                : (announcement.purok ? `Purok ${escapeHtml(announcement.purok)}` : 'All puroks');
+            return `<div style="border:1px solid var(--card-border); border-radius:12px; padding:12px; margin-bottom:10px; background:rgba(255,255,255,0.03);">
+                <p style="margin:0 0 8px; white-space:pre-wrap;">${escapeHtml(announcement.message)}</p>
+                <small class="text-muted">${formatPhilippineDateTime(announcement.date)} | ${puroks} | ${targetNames}</small>
+                <div style="display:flex; gap:8px; margin-top:10px;">
+                    <button class="btn btn-secondary btn-compact announcement-action-btn" style="padding:5px 10px; font-size:12px;" onclick='editAnnouncement(${JSON.stringify(announcement)})'>Edit</button>
+                    <button class="btn btn-danger btn-compact announcement-action-btn" style="padding:5px 10px; font-size:12px;" onclick="deleteAnnouncement(${announcement.id})">Delete</button>
+                </div>
+            </div>`;
+        }).join('') || '<p class="text-muted">No broadcasts yet.</p>';
+    }
+
+    function editAnnouncement(announcement) {
+        document.getElementById('ann-edit-id').value = announcement.id;
+        document.getElementById('ann-msg').value = announcement.message || '';
+        selectedAnnouncementTargets = (announcement.target_users || []).map(target => ({ id: target.id, name: target.name }));
+        selectedAnnouncementPuroks = selectedAnnouncementTargets.length ? [] : (announcement.target_puroks || (announcement.purok ? [announcement.purok] : [])).map(value => parseInt(value)).filter(value => Number.isInteger(value));
+        document.getElementById('ann-submit-btn').innerText = 'Update Broadcast';
+        renderAnnouncementPuroks();
+        renderAnnouncementTargets();
+        document.getElementById('ann-msg').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    async function deleteAnnouncement(id) {
+        if (!confirm('Delete this broadcast announcement?')) return;
+        const res = await fetch(`/api/announcements/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!data.success) {
+            alert(data.error || 'Unable to delete broadcast.');
+            return;
+        }
+        loadBioAnnouncements();
+    }
+
+    async function postEvent() {
+        const body = {
+            title: document.getElementById('ev-title').value,
+            date: document.getElementById('ev-date').value,
+            type: document.getElementById('ev-type').value,
+            description: document.getElementById('ev-desc').value
+        };
+        await fetch('/api/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        alert('Event/Achievement published.');
+        document.getElementById('ev-title').value = '';
+    }
+
+    async function uploadFinance() {
+        const body = {
+            month: parseInt(document.getElementById('f-month').value),
+            year: parseInt(document.getElementById('f-year').value),
+            total_funds: parseFloat(document.getElementById('f-total').value),
+            relief_distribution: parseFloat(document.getElementById('f-relief').value),
+            project_expenses: parseFloat(document.getElementById('f-project').value)
+        };
+        const res = await fetch('/api/finance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const d = await res.json();
+        document.getElementById('f-summary').innerText = d.summary;
+    }
+
+    async function calcRelief() {
+        const budget = document.getElementById('r-budget').value;
+        const res = await fetch('/api/relief/calculate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ budget }) });
+        const d = await res.json();
+        let h = '<ul style="padding-left:20px; text-align:left;">';
+        d.allocations.forEach(a => { h += `<li>Fam ID #${a.family_id}: ₱${a.allocated_amount}</li>`; });
+        h += '</ul>';
+        document.getElementById('r-results').innerHTML = h;
+    }
+
+    async function analyzeFeedback() {
+        const res = await fetch('/api/ratings/analysis');
+        const data = await res.json();
+        document.getElementById('feedback-results').innerText = data.analysis;
+    }
+
+    async function loadBioRatingSchedule() {
+        const schedule = window.loadRatingScheduleStatus
+            ? await window.loadRatingScheduleStatus(true)
+            : await (await fetch('/api/ratings/schedule')).json();
+
+        const status = document.getElementById('rating-schedule-status');
+        if (!status) return schedule;
+
+        status.innerHTML = schedule.is_configured
+            ? `<strong style="color:${schedule.is_open ? 'var(--success)' : 'var(--warning)'};">${schedule.is_open ? 'Ratings Open' : 'Ratings Closed'}</strong><br><span class="text-muted">${schedule.schedule_text}</span>`
+            : `<strong style="color:var(--warning);">No schedule set</strong><br><span class="text-muted">${schedule.message}</span>`;
+
+        if (schedule.is_configured) {
+            const windows = schedule.windows || [];
+            setRatingWindowInputs(1, windows[0]);
+            setRatingWindowInputs(2, windows[1]);
+        }
+
+        return schedule;
+    }
+
+    function ratingDateInputValue(month, day) {
+        if (!month || !day) return '';
+        const year = typeof window.getPhilippineCurrentYear === 'function'
+            ? window.getPhilippineCurrentYear()
+            : new Date().getFullYear();
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    function setRatingWindowInputs(windowNumber, windowData) {
+        document.getElementById(`rating-window${windowNumber}-start`).value = windowData ? ratingDateInputValue(windowData.start_month, windowData.start_day) : '';
+        document.getElementById(`rating-window${windowNumber}-end`).value = windowData ? ratingDateInputValue(windowData.end_month, windowData.end_day) : '';
+    }
+
+    async function saveRatingSchedule() {
+        const windows = [];
+        for (const windowNumber of [1, 2]) {
+            const startDate = document.getElementById(`rating-window${windowNumber}-start`).value;
+            const endDate = document.getElementById(`rating-window${windowNumber}-end`).value;
+            if (startDate || endDate) {
+                if (!startDate || !endDate) {
+                    alert(`Complete both start and end dates for rating window ${windowNumber}.`);
+                    return;
+                }
+                windows.push({ start_date: startDate, end_date: endDate });
+            }
+        }
+
+        if (!windows.length) {
+            alert('Add at least one rating window.');
+            return;
+        }
+
+        const body = { windows };
+
+        const res = await fetch('/api/ratings/schedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!data.success) {
+            alert(data.error || 'Unable to save rating schedule.');
+            return;
+        }
+
+        window.RATING_SCHEDULE_CACHE = data.schedule;
+        await loadBioRatingSchedule();
+        renderOfficialsList(document.getElementById('off-search')?.value || '');
+        alert('Rating schedule updated.');
+    }
+
+    // --- Social Features ---
+    let selectedFiles = []; // Store real File objects
+    let selectedMediaPreviews = []; // Store preview URLs
+    let selectedMentions = [];
+    let selectedLocation = null;
+    let editPostFiles = [];
+    let editPostMedia = [];
+    let editPostMentions = [];
+    let editPostLocation = null;
+    window.POSTS_CACHE = [];
+    window.MENTION_CANDIDATES = null;
+    const LOCATION_PICKER_STATE = {
+        create: { currentSuggestion: null, searchToken: 0, geoToken: 0, debounce: null },
+        edit: { currentSuggestion: null, searchToken: 0, geoToken: 0, debounce: null }
+    };
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function getLocationPickerElements(mode = 'create') {
+        if (mode === 'edit') {
+            return {
+                box: document.getElementById('ep-location-search-box'),
+                input: document.getElementById('ep-location-input'),
+                list: document.getElementById('ep-location-list')
+            };
+        }
+        return {
+            box: document.getElementById('location-search-box'),
+            input: document.getElementById('location-input'),
+            list: document.getElementById('location-list')
+        };
+    }
+
+    function normalizeLocationChoice(location, source = 'search') {
+        if (!location) return null;
+        const displayName = String(location.display_name || location.label || '').trim();
+        const rawParts = displayName.split(',').map(part => part.trim()).filter(Boolean);
+        const uniqueParts = [];
+        rawParts.forEach(part => {
+            if (!uniqueParts.some(existing => existing.toLowerCase() === part.toLowerCase())) {
+                uniqueParts.push(part);
+            }
+        });
+        const label = String(location.label || uniqueParts.slice(0, 3).join(', ') || displayName || 'Pinned location').trim();
+        if (!label) return null;
+        return {
+            label,
+            display_name: displayName || label,
+            source: location.source || source
+        };
+    }
+
+    function dedupeLocationChoices(choices) {
+        const seen = new Set();
+        return choices
+            .map(choice => normalizeLocationChoice(choice, choice && choice.source ? choice.source : 'search'))
+            .filter(choice => {
+                if (!choice) return false;
+                const key = choice.label.toLowerCase();
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+    }
+
+    function getSelectedLocationValue(mode = 'create') {
+        return mode === 'edit' ? editPostLocation : selectedLocation;
+    }
+
+    function setSelectedLocationValue(mode, value) {
+        if (mode === 'edit') {
+            editPostLocation = value;
+            renderEditLocationPreview();
+        } else {
+            selectedLocation = value;
+            renderLocationPreview();
+        }
+    }
+
+    function resetLocationSearchBox(mode = 'create', clearSuggestion = false) {
+        const state = LOCATION_PICKER_STATE[mode];
+        if (state.debounce) {
+            clearTimeout(state.debounce);
+            state.debounce = null;
+        }
+        if (clearSuggestion) {
+            state.currentSuggestion = null;
+        }
+        const { box, input, list } = getLocationPickerElements(mode);
+        if (box) box.style.display = 'none';
+        if (input) input.value = '';
+        if (list) list.innerHTML = '';
+    }
+
+    function renderLocationSearchResults(mode = 'create', choices = [], statusMessage = '') {
+        const { list } = getLocationPickerElements(mode);
+        if (!list) return;
+
+        const normalizedChoices = dedupeLocationChoices(choices);
+        const statusHtml = statusMessage ? `<div class="location-search-empty">${escapeHtml(statusMessage)}</div>` : '';
+
+        if (!normalizedChoices.length) {
+            list.innerHTML = statusHtml || '<div class="location-search-empty">Search another location or use your current place.</div>';
+            return;
+        }
+
+        list.innerHTML = statusHtml + normalizedChoices.map(choice => {
+            const encodedLabel = encodeURIComponent(choice.label);
+            const badge = choice.source === 'current' ? 'Current' : (choice.source === 'selected' ? 'Selected' : 'Search');
+            const subtitle = choice.source === 'current'
+                ? (choice.display_name || 'Current location detected from this device.')
+                : (choice.display_name || 'Tap to use this location.');
+
+            return `
+                <button type="button" class="mention-item location-result-item" onclick="selectPostLocation('${mode}', decodeURIComponent('${encodedLabel}'))">
+                    <div class="location-search-copy">
+                        <strong>${escapeHtml(choice.label)}</strong>
+                        <small>${escapeHtml(subtitle)}</small>
+                    </div>
+                    <span class="location-search-badge ${choice.source}">${badge}</span>
+                </button>
+            `;
+        }).join('');
+    }
+
+    async function fetchCurrentLocationChoice() {
+        if (!navigator.geolocation) {
+            return null;
+        }
+
+        return new Promise(resolve => {
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&accept-language=en&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`);
+                    if (!res.ok) throw new Error('Location lookup failed');
+                    const data = await res.json();
+                    resolve(normalizeLocationChoice({
+                        display_name: data.display_name,
+                        label: undefined,
+                        source: 'current'
+                    }, 'current'));
+                } catch (e) {
+                    console.error('Geo error', e);
+                    resolve(null);
+                }
+            }, () => resolve(null), { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+        });
+    }
+
+    async function loadCurrentLocationSuggestion(mode = 'create') {
+        const state = LOCATION_PICKER_STATE[mode];
+        const requestToken = ++state.geoToken;
+        const selected = getSelectedLocationValue(mode);
+
+        renderLocationSearchResults(
+            mode,
+            selected ? [{ label: selected, display_name: selected, source: 'selected' }] : [],
+            'Checking your current location...'
+        );
+
+        const currentChoice = await fetchCurrentLocationChoice();
+        if (requestToken !== state.geoToken) return;
+
+        state.currentSuggestion = currentChoice;
+        const baseChoices = [];
+        if (selected) baseChoices.push({ label: selected, display_name: selected, source: 'selected' });
+        if (currentChoice) baseChoices.push(currentChoice);
+
+        renderLocationSearchResults(
+            mode,
+            baseChoices,
+            currentChoice
+                ? 'Your current place is suggested below. You can also search another location.'
+                : 'Current location is unavailable right now. You can still search another place.'
+        );
+    }
+
+    async function performLocationSearch(query, mode = 'create') {
+        const state = LOCATION_PICKER_STATE[mode];
+        const trimmedQuery = String(query || '').trim();
+        const selected = getSelectedLocationValue(mode);
+        const currentChoice = state.currentSuggestion;
+        const baseChoices = [];
+
+        if (selected) baseChoices.push({ label: selected, display_name: selected, source: 'selected' });
+        if (currentChoice) baseChoices.push(currentChoice);
+
+        if (!trimmedQuery) {
+            renderLocationSearchResults(
+                mode,
+                baseChoices,
+                currentChoice
+                    ? 'Your current place is suggested below. Search another location if needed.'
+                    : 'Type a location name to search another place.'
+            );
+            return;
+        }
+
+        const searchToken = ++state.searchToken;
+        renderLocationSearchResults(mode, baseChoices, `Searching for "${trimmedQuery}"...`);
+
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&addressdetails=1&accept-language=en&q=${encodeURIComponent(trimmedQuery)}`);
+            if (!res.ok) throw new Error('Location search failed');
+            const data = await res.json();
+            if (searchToken !== state.searchToken) return;
+
+            const searchChoices = Array.isArray(data)
+                ? data.map(item => normalizeLocationChoice({ display_name: item.display_name, label: undefined, source: 'search' }, 'search'))
+                : [];
+
+            const combinedChoices = [...baseChoices, ...searchChoices];
+            renderLocationSearchResults(
+                mode,
+                combinedChoices,
+                combinedChoices.length ? '' : `No locations found for "${trimmedQuery}".`
+            );
+        } catch (e) {
+            console.error('Location search error', e);
+            if (searchToken !== state.searchToken) return;
+            renderLocationSearchResults(mode, baseChoices, 'Unable to search locations right now. You can still use your current place.');
+        }
+    }
+
+    function searchPostLocations(query, mode = 'create') {
+        const state = LOCATION_PICKER_STATE[mode];
+        if (state.debounce) clearTimeout(state.debounce);
+        state.debounce = setTimeout(() => performLocationSearch(query, mode), 250);
+    }
+
+    function selectPostLocation(mode, locationLabel) {
+        if (!locationLabel) return;
+        setSelectedLocationValue(mode, locationLabel);
+        const { box, input } = getLocationPickerElements(mode);
+        if (input) input.value = locationLabel;
+        if (box) box.style.display = 'none';
+    }
+
+    async function openLocationPicker(mode = 'create') {
+        const { box, input } = getLocationPickerElements(mode);
+        if (!box || !input) return;
+
+        const mentionBox = document.getElementById(mode === 'edit' ? 'ep-mention-search-box' : 'mention-search-box');
+        if (mentionBox) mentionBox.style.display = 'none';
+
+        const shouldOpen = box.style.display === 'none';
+        box.style.display = shouldOpen ? 'block' : 'none';
+        if (!shouldOpen) return;
+
+        input.focus();
+        if (input.value.trim()) {
+            searchPostLocations(input.value, mode);
+        } else {
+            await loadCurrentLocationSuggestion(mode);
+        }
+    }
+
+    async function refreshCurrentLocationSuggestion(mode = 'create') {
+        const { box } = getLocationPickerElements(mode);
+        if (box) box.style.display = 'block';
+        await loadCurrentLocationSuggestion(mode);
+    }
+
+    function mentionExists(list, id, name) {
+        const normalizedName = String(name || '').trim().toLowerCase();
+        return list.some(item => (
+            id !== null && id !== undefined && id !== '' && item.id === id
+        ) || String(item.name || '').trim().toLowerCase() === normalizedName);
+    }
+
+    async function loadMentionCandidates(force = false) {
+        if (!force && Array.isArray(window.MENTION_CANDIDATES) && window.MENTION_CANDIDATES.length) {
+            return window.MENTION_CANDIDATES;
+        }
+
+        const [resM, resO] = await Promise.all([
+            fetch('/api/members'),
+            fetch('/api/officials')
+        ]);
+        const residents = await resM.json();
+        const officials = await resO.json();
+        const seen = new Set();
+
+        window.MENTION_CANDIDATES = [...residents, ...officials].filter(user => {
+            if (!user || !user.full_name) return false;
+            const key = user.id ?? user.full_name.toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+
+        return window.MENTION_CANDIDATES;
+    }
+
+    function renderLocationPreview() {
+        const preview = document.getElementById('location-preview');
+        if (!preview) return;
+
+        if (!selectedLocation) {
+            preview.innerHTML = '';
+            preview.style.display = 'none';
+            return;
+        }
+
+        preview.innerHTML = `<i class="fa-solid fa-location-dot"></i> at ${selectedLocation} <span style="cursor:pointer; margin-left:5px;" onclick="removeSelectedLocation()">&times;</span>`;
+        preview.style.display = 'flex';
+    }
+
+    function renderEditLocationPreview() {
+        const preview = document.getElementById('ep-location-preview');
+        if (!preview) return;
+
+        if (!editPostLocation) {
+            preview.innerHTML = '';
+            preview.style.display = 'none';
+            return;
+        }
+
+        preview.innerHTML = `<i class="fa-solid fa-location-dot"></i> at ${editPostLocation} <span style="cursor:pointer; margin-left:5px;" onclick="removeEditLocation()">&times;</span>`;
+        preview.style.display = 'flex';
+    }
+
+    function removeSelectedLocation() {
+        selectedLocation = null;
+        renderLocationPreview();
+    }
+
+    function removeEditLocation() {
+        editPostLocation = null;
+        renderEditLocationPreview();
+    }
+
+    function removeSelectedMention(index) {
+        selectedMentions.splice(index, 1);
+        renderMentions();
+    }
+
+    function removeEditMention(index) {
+        editPostMentions.splice(index, 1);
+        renderEditMentions();
+    }
+
+    async function handleMediaSelection(event) {
+        const files = Array.from(event.target.files);
+        for (const file of files) {
+            selectedFiles.push(file);
+            const reader = new FileReader();
+            const previewUrl = await new Promise(res => {
+                reader.onload = (e) => res(e.target.result);
+                reader.readAsDataURL(file);
+            });
+            selectedMediaPreviews.push({ type: file.type.startsWith('video') ? 'video' : 'image', url: previewUrl });
+        }
+        renderMediaPreviews();
+    }
+
+    async function handleEditMediaSelection(event) {
+        const files = Array.from(event.target.files);
+        for (const file of files) {
+            const reader = new FileReader();
+            const previewUrl = await new Promise(res => {
+                reader.onload = (e) => res(e.target.result);
+                reader.readAsDataURL(file);
+            });
+            const tempId = `${file.name}-${file.size}-${Date.now()}-${Math.random()}`;
+            file.tempId = tempId;
+            editPostFiles.push(file);
+            editPostMedia.push({ type: file.type.startsWith('video') ? 'video' : 'image', url: previewUrl, source: 'new', tempId: tempId });
+        }
+        event.target.value = '';
+        renderEditMediaPreviews();
+    }
+
+    function renderMediaPreviews() {
+        const container = document.getElementById('media-preview-container');
+        container.innerHTML = selectedMediaPreviews.map((m, i) => `
+            <div class="preview-item" style="position:relative;">
+                ${m.type === 'video' ? `<video src="${m.url}" style="width:100%; height:100%; object-fit:cover;"></video>` : `<img src="${m.url}" style="width:100%; height:100%; object-fit:cover;">`}
+                <div class="preview-remove" onclick="selectedFiles.splice(${i}, 1); selectedMediaPreviews.splice(${i}, 1); renderMediaPreviews();">&times;</div>
+            </div>
+        `).join('');
+    }
+
+    function renderEditMediaPreviews() {
+        const container = document.getElementById('ep-media-preview-container');
+        container.innerHTML = editPostMedia.map((m, i) => `
+            <div class="preview-item" style="position:relative;">
+                ${m.type === 'video' ? `<video src="${m.url}" style="width:100%; height:100%; object-fit:cover;"></video>` : `<img src="${m.url}" style="width:100%; height:100%; object-fit:cover;">`}
+                <div class="preview-remove" onclick="removeEditMedia(${i})">&times;</div>
+            </div>
+        `).join('');
+    }
+
+    function removeEditMedia(index) {
+        const media = editPostMedia[index];
+        if (media && media.source === 'new') {
+            editPostFiles = editPostFiles.filter(file => file.tempId !== media.tempId);
+        }
+        editPostMedia.splice(index, 1);
+        renderEditMediaPreviews();
+    }
+
+    function toggleMentionSearch() {
+        const box = document.getElementById('mention-search-box');
+        document.getElementById('location-search-box').style.display = 'none';
+        box.style.display = box.style.display === 'none' ? 'block' : 'none';
+        if(box.style.display === 'block') document.getElementById('mention-input').focus();
+    }
+
+    function toggleEditMentionSearch() {
+        const box = document.getElementById('ep-mention-search-box');
+        document.getElementById('ep-location-search-box').style.display = 'none';
+        box.style.display = box.style.display === 'none' ? 'block' : 'none';
+        if(box.style.display === 'block') document.getElementById('ep-mention-input').focus();
+    }
+
+    async function searchMentions(query) {
+        if(!query) { document.getElementById('mention-list').innerHTML = ''; return; }
+        const all = await loadMentionCandidates();
+        const filtered = all.filter(u => u.full_name.toLowerCase().includes(query.toLowerCase())).slice(0, 5);
+        document.getElementById('mention-list').innerHTML = filtered.map(u => `
+            <div class="mention-item" onclick='addMention(${JSON.stringify(u.id ?? null)}, ${JSON.stringify(u.full_name)})'>
+                <img src="${u.pic_url || '/static/default-avatar.svg'}" style="width:30px; height:30px; border-radius:50%;">
+                <span>${u.full_name}</span>
+            </div>
+        `).join('');
+    }
+
+    async function searchEditMentions(query) {
+        if(!query) { document.getElementById('ep-mention-list').innerHTML = ''; return; }
+        const all = await loadMentionCandidates();
+        const filtered = all.filter(u => u.full_name.toLowerCase().includes(query.toLowerCase())).slice(0, 5);
+        document.getElementById('ep-mention-list').innerHTML = filtered.map(u => `
+            <div class="mention-item" onclick='addEditMention(${JSON.stringify(u.id ?? null)}, ${JSON.stringify(u.full_name)})'>
+                <img src="${u.pic_url || '/static/default-avatar.svg'}" style="width:30px; height:30px; border-radius:50%;">
+                <span>${u.full_name}</span>
+            </div>
+        `).join('');
+    }
+
+    function addMention(id, name) {
+        if(mentionExists(selectedMentions, id, name)) return;
+        selectedMentions.push({id, name});
+        renderMentions();
+        toggleMentionSearch();
+    }
+
+    function addEditMention(id, name) {
+        if(mentionExists(editPostMentions, id, name)) return;
+        editPostMentions.push({id, name});
+        renderEditMentions();
+        toggleEditMentionSearch();
+    }
+
+    function renderMentions() {
+        const container = document.getElementById('mention-preview-container');
+        container.innerHTML = selectedMentions.map((m, i) => `
+            <div class="mention-tag">@${m.name} <span style="cursor:pointer" onclick="removeSelectedMention(${i})">&times;</span></div>
+        `).join('');
+    }
+
+    function renderEditMentions() {
+        const container = document.getElementById('ep-mention-preview-container');
+        container.innerHTML = editPostMentions.map((m, i) => `
+            <div class="mention-tag">@${m.name} <span style="cursor:pointer" onclick="removeEditMention(${i})">&times;</span></div>
+        `).join('');
+    }
+
+    function attachCurrentLocation() {
+        openLocationPicker();
+    }
+
+    function attachEditLocation() {
+        openLocationPicker('edit');
+    }
+
+    async function postNews() {
+        const content = document.getElementById('news-content').value;
+        if (!content && selectedFiles.length === 0) return alert("Post cannot be empty.");
+        
+        const btn = document.querySelector('button[onclick="postNews()"]');
+        const oldText = btn.innerText;
+        btn.innerText = "Uploading...";
+        btn.disabled = true;
+
+        try {
+            const uploadedUrls = [];
+            for (const file of selectedFiles) {
+                const formData = new FormData();
+                formData.append('file', file);
+                const res = await fetch('/api/upload_media', { method: 'POST', body: formData });
+                const data = await res.json();
+                if(data.success) uploadedUrls.push(data.url);
+            }
+            
+            const body = {
+                content: content,
+                media_urls: uploadedUrls,
+                mentions: selectedMentions.map(m => ({ id: m.id, name: m.name })),
+                location: selectedLocation
+            };
+            
+            const res = await fetch('/api/posts', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if ((await res.json()).success) {
+                alert("Post shared successfully!");
+                document.getElementById('news-content').value = '';
+                selectedFiles = [];
+                selectedMediaPreviews = [];
+                selectedMentions = [];
+                selectedLocation = null;
+                document.getElementById('media-preview-container').innerHTML = '';
+                resetLocationSearchBox();
+                renderMentions();
+                renderLocationPreview();
+                loadNewsFeed();
+            }
+        } catch(e) {
+            alert("Error posting news feed.");
+        } finally {
+            btn.innerText = oldText;
+            btn.disabled = false;
+        }
+    }
+
+    async function loadNewsFeed() {
+        const res = await fetch('/api/posts');
+        const query = (window.NAV_SEARCH_QUERY || '').toLowerCase();
+        const posts = (await res.json()).filter(p => window.postMatchesSearch(p, query));
+        window.POSTS_CACHE = posts;
+        let html = '';
+        posts.forEach(p => {
+            const mentionNames = window.getMentionDisplayNames(p);
+            const mentionsHtml = mentionNames.length > 0 ? 
+                `<span style="color:var(--primary); font-size:13px;">with <b>${mentionNames.join(', ')}</b></span>` : '';
+            const locationHtml = p.location ? 
+                `<br><small style="color:#f3425f; font-weight:600;"><i class="fa-solid fa-location-dot"></i> ${p.location}</small>` : '';
+            const authorPosition = p.author_position || ((p.author_role === 'bio' || p.author_role === 'official') ? 'Barangay Official' : '');
+            
+            let mediaHtml = '';
+            if(p.media_urls && p.media_urls.length > 0) {
+                const gridClass = p.media_urls.length >= 3 ? 'grid-3' : (p.media_urls.length === 2 ? 'grid-2' : 'grid-1');
+                mediaHtml = `<div class="post-media-grid ${gridClass}">`;
+                p.media_urls.forEach(url => {
+                    if(url.includes('video') || url.startsWith('data:video')) {
+                        mediaHtml += `<video src="${url}" controls></video>`;
+                    } else {
+                        mediaHtml += `<img src="${url}" onclick="window.open(this.src)">`;
+                    }
+                });
+                mediaHtml += `</div>`;
+            } else if (p.image_url) {
+                mediaHtml = `<img src="${p.image_url}" style="width:100%; border-radius:10px; margin-top:10px;" onclick="window.open(this.src)" loading="lazy">`;
+            }
+
+            html += `<div class="glass-card" style="margin-bottom:20px; padding:20px; animation: fadeIn 0.4s ease;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <img src="${p.author_pic || '/static/default-avatar.svg'}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;" loading="lazy">
+                        <div>
+                            <b style="font-size:15px; display:block;">${p.author_name}</b>
+                            ${authorPosition ? `<small style="color:var(--primary); font-size:11px; font-weight:800; display:block; margin-top:2px;">${authorPosition}</small>` : ''}
+                            <small style="color:var(--text-muted); font-size:11px;">${formatPhilippineDateTime(p.timestamp)}</small>
+                        </div>
+                    </div>
+                </div>
+                <p style="margin:0; font-size:15px; line-height:1.6; white-space: pre-wrap; color:var(--text-light);">${p.content} ${mentionsHtml}</p>
+                ${locationHtml}
+                ${mediaHtml}
+                
+                <div style="margin-top:15px; display:flex; gap:20px; align-items:center; border-top:1px solid rgba(255,255,255,0.05); padding-top:10px;">
+                    <div style="cursor:pointer; display:flex; align-items:center; gap:6px; font-size:18px;" onclick="toggleLike(${p.id})">
+                        <i class="${p.is_liked ? 'fa-solid fa-heart' : 'fa-regular fa-heart'}" style="color:${p.is_liked ? '#f3425f' : 'inherit'}"></i>
+                        <span style="font-size:14px; font-weight:600;">${p.likes_count || 0}</span>
+                    </div>
+                    <div style="position:relative;">
+                        <i class="fa-solid fa-ellipsis" style="cursor:pointer; color:var(--text-muted); font-size:18px;" onclick="togglePostMenu(${p.id})"></i>
+                        <div id="post-menu-${p.id}" style="display:none; position:absolute; left:0; bottom:25px; background:var(--bg-dark); border:1px solid var(--card-border); border-radius:10px; padding:5px; z-index:100; min-width:100px; box-shadow:0 5px 15px rgba(0,0,0,0.5);">
+                            <div style="padding:8px; cursor:pointer; font-size:13px; border-radius:5px;" class="menu-item-hover" onclick="openEditPostModal(${p.id})"><i class="fa-solid fa-pen"></i> Edit Post</div>
+                            <div style="padding:8px; cursor:pointer; font-size:13px; color:var(--danger); border-radius:5px;" class="menu-item-hover" onclick="deletePost(${p.id})"><i class="fa-solid fa-trash"></i> Delete Post</div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        });
+        document.getElementById('news-feed-box').innerHTML = html || 'No posts yet.';
+    }
+
+    window.togglePostMenu = (id) => {
+        const menu = document.getElementById(`post-menu-${id}`);
+        const isVisible = menu.style.display === 'block';
+        document.querySelectorAll('[id^="post-menu-"]').forEach(m => m.style.display = 'none');
+        if(!isVisible) menu.style.display = 'block';
+    };
+
+    window.openEditPostModal = async (id) => {
+        const post = (window.POSTS_CACHE || []).find(p => p.id === id);
+        if (!post) return;
+        const mentionCandidates = await loadMentionCandidates();
+        document.getElementById('ep-id').value = id;
+        document.getElementById('ep-content').value = post.content || '';
+        editPostFiles = [];
+        editPostMedia = ((post.media_urls && post.media_urls.length ? post.media_urls : (post.image_url ? [post.image_url] : []))).map(url => ({
+            type: (typeof url === 'string' && (url.includes('video') || url.startsWith('data:video'))) ? 'video' : 'image',
+            url: typeof url === 'string' ? url : url.url,
+            source: 'existing'
+        }));
+        editPostMentions = (post.mentions || []).map(m => {
+            if (typeof m === 'string') {
+                const match = mentionCandidates.find(user => (user.full_name || '').toLowerCase() === m.toLowerCase());
+                return { id: match ? match.id : null, name: m };
+            }
+
+            const name = m.name || m.full_name || '';
+            if (!name) return null;
+            if (m.id !== undefined && m.id !== null && m.id !== '') {
+                return { id: m.id, name };
+            }
+
+            const match = mentionCandidates.find(user => (user.full_name || '').toLowerCase() === name.toLowerCase());
+            return { id: match ? match.id : null, name };
+        }).filter(Boolean);
+        editPostLocation = post.location || null;
+        renderEditMediaPreviews();
+        renderEditMentions();
+        renderEditLocationPreview();
+        resetLocationSearchBox('edit');
+        document.getElementById('ep-mention-search-box').style.display = 'none';
+        document.getElementById('ep-mention-input').value = '';
+        document.getElementById('ep-mention-list').innerHTML = '';
+        document.getElementById('ep-media').value = '';
+        document.getElementById('edit-post-modal').style.display = 'block';
+        document.querySelectorAll('[id^="post-menu-"]').forEach(m => m.style.display = 'none');
+    };
+
+    window.savePostEdit = async () => {
+        const id = document.getElementById('ep-id').value;
+        const content = document.getElementById('ep-content').value;
+        const uploadedUrls = [];
+        for (const file of editPostFiles) {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch('/api/upload_media', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.success) uploadedUrls.push({ tempId: file.tempId, url: data.url });
+        }
+
+        const mediaUrls = editPostMedia.map(media => {
+            if (media.source === 'new') {
+                const uploaded = uploadedUrls.find(item => item.tempId === media.tempId);
+                return uploaded ? uploaded.url : null;
+            }
+            return media.url;
+        }).filter(Boolean);
+
+        await fetch(`/api/posts/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                content,
+                media_urls: mediaUrls,
+                mentions: editPostMentions.map(m => ({ id: m.id, name: m.name })),
+                location: editPostLocation,
+                image_url: null
+            })
+        });
+        document.getElementById('edit-post-modal').style.display = 'none';
+        resetLocationSearchBox('edit');
+        loadNewsFeed();
+    };
+
+    window.deletePost = async (id) => {
+        if(!confirm("Are you sure you want to delete this post?")) return;
+        try {
+            const res = await fetch(`/api/posts/${id}`, { method: 'DELETE' });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.success) {
+                alert(data.error || 'Unable to delete post.');
+                return;
+            }
+            loadNewsFeed();
+        } catch (error) {
+            alert('Unable to delete post right now.');
+        }
+    };
+
+    async function toggleLike(postId) {
+        try {
+            const res = await fetch(`/api/posts/${postId}/like`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                // Find the specific post in the feed and update its heart/count
+                // Actually, it's easier to just update the local cache and re-render that specific card.
+                // But for now, I'll just fetch the new state for that post if I had a single-post API.
+                // Since I don't, I'll just update the icons locally for speed.
+                const heartIcon = document.querySelector(`[onclick="toggleLike(${postId})"] i`);
+                const countSpan = document.querySelector(`[onclick="toggleLike(${postId})"] span`);
+                let currentCount = parseInt(countSpan.innerText);
+                
+                if (data.action === 'liked') {
+                    heartIcon.className = 'fa-solid fa-heart';
+                    heartIcon.style.color = '#f3425f';
+                    countSpan.innerText = currentCount + 1;
+                } else {
+                    heartIcon.className = 'fa-regular fa-heart';
+                    heartIcon.style.color = 'inherit';
+                    countSpan.innerText = Math.max(0, currentCount - 1);
+                }
+            }
+        } catch(e) { console.error("Like error", e); }
+    }
+
+    
+    async function triggerEmergency(type) {
+        if (!navigator.geolocation) return alert("Geolocation not supported.");
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const body = { type, lat: pos.coords.latitude, lng: pos.coords.longitude, purok: "N/A" };
+            await fetch('/api/emergency', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            alert('🚨 Emergency Alert Recorded.');
+            loadEmergencies();
+        });
+    }
+
+    async function triggerEmergency(type) {
+        const result = await window.submitEmergencyReport(type, {
+            successMessage: 'Emergency alert recorded for fellow barangay staff.',
+            fallbackMessage: 'Location is unavailable right now. Allow location access or update your saved house coordinates, then try again.'
+        });
+        if (!result?.success) return;
+        await refreshEmergencyPanels();
+    }
+
+    async function refreshEmergencyPanels() {
+        await Promise.all([loadEmergencies(), loadEmgHistory()]);
+    }
+
+    async function loadEmergencies() {
+        const box = document.getElementById('emg-box');
+        if (box) box.innerHTML = '<p class="text-muted">Loading emergencies...</p>';
+
+        try {
+            const res = await fetch('/api/emergency', {
+                cache: 'no-store',
+                headers: { 'Cache-Control': 'no-cache' }
+            });
+            if (!res.ok) throw new Error('Unable to load emergencies.');
+
+            const payload = await res.json();
+            const data = Array.isArray(payload) ? payload : [];
+            let html = '';
+
+            data.forEach(e => {
+                html += `<div style="border:1px solid var(--danger); padding:10px; border-radius:8px; margin-bottom:10px; background:rgba(239, 68, 68, 0.1);">
+                    <strong>🚨 ${e.type.toUpperCase()} EMERGENCY</strong><br/>
+                    Reported By: <b>${e.reported_by_name}</b><br/>
+                    Purok: ${e.purok}<br/>
+                    Time: ${formatPhilippineDateTime(e.timestamp)}<br/>
+                    <div style="display:flex; gap:10px; margin-top:10px;">
+                        <button class="btn btn-primary" style="padding: 5px 10px;" onclick="ackEmergency(${e.id})">Acknowledge</button>
+                        <button class="btn btn-secondary" style="padding: 5px 10px;" onclick="viewEmergencyMap(${e.lat}, ${e.lng}, '${e.type}', '${e.reported_by_name.replace(/'/g, '\\\'')}')">View Map</button>
+                    </div>
+                </div>`;
+            });
+
+            if (box) box.innerHTML = html || 'No unacknowledged emergencies.';
+        } catch (error) {
+            if (box) box.innerHTML = '<p class="text-danger">Unable to load emergencies right now.</p>';
+        }
+    }
+    async function ackEmergency(id) {
+        const res = await fetch('/api/emergency/ack', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+        if (!res.ok) {
+            alert('Unable to acknowledge the emergency right now.');
+            return;
+        }
+        await refreshEmergencyPanels();
+    }
+
+    async function submitIndividualRating(off_id) {
+        const ratingVal = document.getElementById(`rating-${off_id}`).value;
+        const feedback = document.getElementById(`fb-${off_id}`) ? document.getElementById(`fb-${off_id}`).value : '';
+        
+        const body = {
+            official_id: off_id,
+            rating: parseInt(ratingVal),
+            feedback: feedback
+        };
+        const res = await fetch('/api/ratings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const d = await res.json();
+        if (d.success) { 
+            alert("Rating Submitted successfully (1-5 scale)."); 
+            if(document.getElementById(`fb-${off_id}`)) document.getElementById(`fb-${off_id}`).value=''; 
+            window.RATING_SUMMARY_CACHE = null;
+            loadMembers();
+        }
+        else alert(d.error);
+    }
+    
+    async function loadMembers() {
+        // Load Residents
+        const resM = await fetch('/api/members');
+        const query = (window.NAV_SEARCH_QUERY || '').toLowerCase();
+        window.MEMBERS_CACHE = (await resM.json()).filter(m => !query || (m.full_name || '').toLowerCase().includes(query));
+        let html = '';
+        window.MEMBERS_CACHE.forEach(m => {
+            let statusBadge = '';
+            if (!m.is_active) {
+                statusBadge = `<br><span style="color:#64748b; font-weight:800; font-size:10px;">⚪ DEACTIVATED</span>`;
+            } else if (m.is_banned) {
+                const h = Math.floor(m.ban_remaining / 3600);
+                const mm = Math.floor((m.ban_remaining % 3600) / 60);
+                const ss = m.ban_remaining % 60;
+                const timeStr = [h, mm, ss].map(v => v < 10 ? '0' + v : v).join(':');
+                statusBadge = `<br><span style="color:var(--danger); font-weight:800; font-size:11px;">🚫 BANNED: ${timeStr}</span>`;
+            }
+
+            const warnBtn = `<button class="btn btn-secondary btn-compact member-admin-btn member-admin-warn" style="padding:4px 8px; font-size:10px; background:var(--warning); color:black;" onclick="issueWarning(${m.id}, '${m.full_name.replace(/'/g, "\\'")}')">⚠️ Warn</button>`;
+            const toggleBtn = `<button class="btn btn-secondary btn-compact member-admin-btn member-admin-toggle" style="padding:4px 8px; font-size:10px; background:${m.is_active ? '#4ade80' : '#64748b'}; color:white;" onclick="toggleActive(${m.id})">${m.is_active ? 'Deactivate' : 'Activate'}</button>`;
+
+            html += `<div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; display:flex; align-items:center; position:relative; margin-bottom:10px;">
+                <img src="${m.pic_url || '/static/default-avatar.svg'}" style="width:40px;height:40px;border-radius:50%;margin-right:10px;object-fit:cover;">
+                <div style="flex:1;"><b>${m.full_name}</b><br><small style="color:var(--text-muted)">Role: ${m.role.toUpperCase()} | Class: ${m.class_type || 'N/A'}</small>${statusBadge}</div>
+                <div style="display:flex; flex-direction:column; gap:5px; align-items:flex-end;">
+                    <div style="display:flex; gap:5px;">
+                        ${warnBtn}
+                        <button class="btn btn-secondary btn-compact member-admin-btn member-admin-edit" style="padding:4px 8px; font-size:10px;" onclick="openEditModal(${m.id})">Edit</button>
+                    </div>
+                    ${toggleBtn}
+                </div>
+            </div>`;
+        });
+        document.getElementById('members-list').innerHTML = html || 'No residents found.';
+        
+        // Load Officials
+        const resO = await fetch('/api/officials');
+        window.OFFICIALS_CACHE = (await resO.json()).filter(o => !query || (o.full_name || '').toLowerCase().includes(query));
+        if (window.loadRatingScheduleStatus) await window.loadRatingScheduleStatus(true);
+        if (window.loadRatingSummary) await window.loadRatingSummary(true);
+        renderOfficialsList(window.NAV_SEARCH_QUERY || '');
+
+        if(document.getElementById('bio-map')) {
+            const allUsers = [...window.MEMBERS_CACHE, ...window.OFFICIALS_CACHE];
+            window.initGlobalMap('bio-map', allUsers, false);
+            window.MAP_INIT = true;
+        }
+    }
+
+    function renderOfficialsList(query = '') {
+        let offHtml = '';
+        const filtered = window.OFFICIALS_CACHE.filter(o => o.full_name.toLowerCase().includes(query.toLowerCase()));
+        filtered.forEach(o => {
+            const isMe = o.id == {{ session.get('user_id', 0) }};
+            offHtml += `<div style="padding:15px; border:1px solid var(--card-border); border-radius:15px; background:${isMe ? 'rgba(69, 189, 98, 0.05)' : 'rgba(255,255,255,0.02)'}; margin-bottom:15px; border-left: ${isMe ? '4px solid #45bd62' : '1px solid var(--card-border)'};">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                    <img src="${o.pic_url || '/static/default-avatar.svg'}" style="width:50px;height:50px;border-radius:50%;object-fit:cover; border: 2px solid var(--primary);">
+                    <div style="flex:1;">
+                        <b style="font-size:16px;">${o.full_name} ${isMe ? '<span style="color:#45bd62; font-size:10px;">(YOU)</span>' : ''}</b><br>
+                        <span style="color:var(--primary); font-size:12px; font-weight:700;">${(o.position || 'Barangay Official').toUpperCase()}</span>
+                        ${window.buildVoteStatsHtml ? window.buildVoteStatsHtml(o.id) : ''}
+                    </div>
+                    <button class="btn btn-secondary btn-compact member-admin-btn member-admin-edit" style="padding:5px 10px; font-size:11px;" onclick="openEditModal(${o.id}, true)">Edit</button>
+                </div>
+                <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="font-size:13px;">Official Rating (1-5)</span>
+                        <b id="val-label-${o.id}" style="color:var(--warning)">5.0</b>
+                    </div>
+                    <input type="range" id="rating-${o.id}" min="1" max="5" step="1" value="5" style="width:100%; accent-color:var(--warning);" oninput="document.getElementById('val-label-${o.id}').innerText = parseFloat(this.value).toFixed(1)">
+                    <textarea id="fb-${o.id}" class="input-field" placeholder="Share your feedback or what they can improve..." rows="2" style="margin-top:10px; font-size:13px;"></textarea>
+                    ${window.buildRatingActionHtml ? window.buildRatingActionHtml(o.id) : `<button class="btn btn-primary" style="width:100%; margin-top:5px; padding:8px;" onclick="submitIndividualRating(${o.id})">Rate Official</button>`}
+                    <small style="display:block; text-align:center; margin-top:5px; color:var(--text-muted); font-size:10px;">BIO controls the official rating schedule.</small>
+                </div>
+            </div>`;
+        });
+        if(document.getElementById('officials-list')) document.getElementById('officials-list').innerHTML = offHtml || 'No officials registered yet.';
+    }
+
+    let addPinMap = null;
+    let addPinMarker = null;
+
+    function loadBioHome(force = false) {
+        if (force || !bioTabState.homeLoaded) {
+            bioTabState.homeLoaded = true;
+            loadNewsFeed();
+        }
+    }
+
+    function loadBioMembersSection(force = false) {
+        if (force || !bioTabState.membersLoaded) {
+            bioTabState.membersLoaded = true;
+            loadMembers();
+        }
+    }
+
+    function loadBioWelfareSection(force = false) {
+        if (force || !bioTabState.welfareLoaded) {
+            bioTabState.welfareLoaded = true;
+            if (window.loadWelfareModule) window.loadWelfareModule(true);
+        } else if (window.renderWelfareRecords) {
+            window.renderWelfareRecords();
+        }
+    }
+
+    function loadBioOfficialsSection(force = false) {
+        if (force || !bioTabState.officialsLoaded) {
+            bioTabState.officialsLoaded = true;
+            loadBioRatingSchedule();
+            loadMembers();
+        } else if (!window.OFFICIALS_CACHE) {
+            loadBioRatingSchedule();
+            loadMembers();
+        } else {
+            loadBioRatingSchedule();
+        }
+    }
+
+    function loadBioReportSection(force = false) {
+        if (force || !bioTabState.reportLoaded) {
+            bioTabState.reportLoaded = true;
+            refreshEmergencyPanels();
+        }
+    }
+
+    function loadBioHistorySection(force = false) {
+        if (force || !bioTabState.historyLoaded) {
+            bioTabState.historyLoaded = true;
+            loadHistory();
+        }
+    }
+
+    function loadBioMapSection(force = false) {
+        if (window.MAP_INIT && !force) {
+            setTimeout(() => { if(window.L && L.Map) window.dispatchEvent(new Event('resize')); }, 100);
+            return;
+        }
+
+        if (force || !bioTabState.mapLoaded) {
+            bioTabState.mapLoaded = true;
+            loadMembers();
+        }
+    }
+
+    window.addEventListener('tabChanged', (e) => {
+        const tab = typeof e.detail === 'string' ? e.detail : e.detail.tabId;
+        const forced = typeof e.detail === 'object' && e.detail.forced;
+        if(tab === 'home') loadBioHome(forced);
+        if(tab === 'members') loadBioMembersSection(forced);
+        if(tab === 'welfare') loadBioWelfareSection(forced);
+        if(tab === 'officials') loadBioOfficialsSection(forced);
+        if(tab === 'notification') {
+            loadAnnouncementPurokOptions();
+            loadBioAnnouncements();
+        }
+        if(tab === 'report') loadBioReportSection(forced);
+        if(tab === 'history') loadBioHistorySection(forced);
+        if(tab === 'maps') loadBioMapSection(forced);
+        if(tab === 'add') {
+            if(!addPinMap && document.getElementById('add-pin-map')) {
+                addPinMap = L.map('add-pin-map').setView([12.8797, 121.7740], 5);
+                L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}',{maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3']}).addTo(addPinMap);
+                
+                if(window.USER_BRGY) {
+                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(window.USER_BRGY + ', Philippines')}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if(data.length > 0) addPinMap.setView([data[0].lat, data[0].lon], 15);
+                    });
+                }
+
+                addPinMap.on('click', function(e) {
+                    if(addPinMarker) addPinMap.removeLayer(addPinMarker);
+                    addPinMarker = L.marker(e.latlng).addTo(addPinMap);
+                    document.getElementById('r-lat').value = e.latlng.lat;
+                    document.getElementById('r-lng').value = e.latlng.lng;
+                });
+            } else if(addPinMap) {
+                setTimeout(() => { addPinMap.invalidateSize(); }, 100);
+            }
+        }
+    });
+
+    window.addEventListener('nameSearchChanged', (e) => {
+        const tab = e.detail.tabId;
+        if(tab === 'home') loadNewsFeed();
+        if(tab === 'welfare' && window.renderWelfareRecords) window.renderWelfareRecords();
+        if(tab === 'members' || tab === 'officials' || tab === 'maps') loadMembers();
+    });
+
+    let editPinMap = null;
+    let editPinMarker = null;
+
+    function openEditModal(id, isOfficial = false) {
+        const m = isOfficial ? window.OFFICIALS_CACHE.find(x => x.id === id) : window.MEMBERS_CACHE.find(x => x.id === id);
+        if(!m) return;
+        document.getElementById('e-id').value = id;
+        document.getElementById('edit-title').innerText = 'Edit ' + (m.full_name||'User');
+        document.getElementById('e-name').value = m.full_name || '';
+        document.getElementById('e-user').value = m.username || '';
+        document.getElementById('e-role').value = m.role || 'resident';
+        document.getElementById('e-pos').value = m.position || '';
+        document.getElementById('e-bdate').value = m.birthdate || '';
+        document.getElementById('e-bplace').value = m.birthplace || '';
+        document.getElementById('e-purok').value = m.purok || '';
+        document.getElementById('e-emp').value = m.employment_status || 'unspecified';
+        document.getElementById('e-mother').value = m.mother_name || '';
+        document.getElementById('e-father').value = m.father_name || '';
+        document.getElementById('e-income').value = m.monthly_income || '';
+        document.getElementById('e-lat').value = m.lat || '';
+        document.getElementById('e-lng').value = m.lng || '';
+        updateClassLabel(m.monthly_income || 0, 'e-class-tag');
+        const deleteBtn = document.getElementById('delete-member-btn');
+        if (deleteBtn) {
+            const isSelfBio = m.role === 'bio' && m.id == {{ session.get('user_id', 0) }};
+            const canDelete = ['resident', 'official'].includes(m.role) || isSelfBio;
+            deleteBtn.style.display = canDelete ? 'block' : 'none';
+            deleteBtn.dataset.memberRole = m.role || '';
+            deleteBtn.dataset.memberName = m.full_name || '';
+            deleteBtn.dataset.selfDelete = isSelfBio ? '1' : '0';
+            deleteBtn.innerText = isSelfBio
+                ? 'Delete BIO Account Only'
+                : (canDelete ? `Delete ${m.role === 'official' ? 'Official' : 'Resident'} Account` : 'Delete Account');
+        }
+        document.getElementById('edit-modal').style.display = 'block';
+
+        setTimeout(() => {
+            if(!editPinMap) {
+                editPinMap = L.map('edit-pin-map').setView([m.lat || 12.8797, m.lng || 121.7740], m.lat ? 18 : 5);
+                L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}',{maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3']}).addTo(editPinMap);
+                editPinMap.on('click', (e) => {
+                    if(editPinMarker) editPinMap.removeLayer(editPinMarker);
+                    editPinMarker = L.marker([e.latlng.lat, e.latlng.lng]).addTo(editPinMap);
+                    document.getElementById('e-lat').value = e.latlng.lat;
+                    document.getElementById('e-lng').value = e.latlng.lng;
+                });
+            } else {
+                editPinMap.setView([m.lat || 12.8797, m.lng || 121.7740], m.lat ? 18 : 5);
+            }
+            if(editPinMarker) editPinMap.removeLayer(editPinMarker);
+            if(m.lat && m.lng) {
+                editPinMarker = L.marker([m.lat, m.lng]).addTo(editPinMap);
+            }
+            editPinMap.invalidateSize();
+        }, 300);
+    }
+
+    function updateClassLabel(val, tagId) {
+        const inc = parseFloat(val) || 0;
+        let c = 'D';
+        if(inc > 30000) c = 'A';
+        else if(inc > 20000) c = 'B';
+        else if(inc > 10000) c = 'C';
+        document.getElementById(tagId).innerText = 'CLASS ' + c;
+    }
+
+    async function saveEdit() {
+        const id = document.getElementById('e-id').value;
+        let picUrl = '';
+        const picInput = document.getElementById('e-pic');
+        if(picInput.files.length > 0) {
+            const formData = new FormData();
+            formData.append('file', picInput.files[0]);
+            const upRes = await fetch('/api/upload_image', {method: 'POST', body: formData});
+            const upData = await upRes.json();
+            if(upData.success) picUrl = upData.url;
+        }
+        const body = {
+            full_name: document.getElementById('e-name').value,
+            username: document.getElementById('e-user').value,
+            role: document.getElementById('e-role').value,
+            birthdate: document.getElementById('e-bdate').value,
+            birthplace: document.getElementById('e-bplace').value,
+            purok: document.getElementById('e-purok').value,
+            employment_status: document.getElementById('e-emp').value,
+            mother_name: document.getElementById('e-mother').value,
+            father_name: document.getElementById('e-father').value,
+            monthly_income: document.getElementById('e-income').value,
+            position: document.getElementById('e-pos').value,
+            lat: document.getElementById('e-lat').value ? parseFloat(document.getElementById('e-lat').value) : null,
+            lng: document.getElementById('e-lng').value ? parseFloat(document.getElementById('e-lng').value) : null
+        };
+        if(document.getElementById('e-pass').value) body.password = document.getElementById('e-pass').value;
+        if(picUrl) body.pic_url = picUrl;
+
+        await fetch('/api/bio/member/' + id, {method: 'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+        document.getElementById('edit-modal').style.display = 'none';
+        alert("Member Updated.");
+        window.MENTION_CANDIDATES = null;
+        loadMembers();
+    }
+    
+    async function deleteMember() {
+        const deleteBtn = document.getElementById('delete-member-btn');
+        const isSelfDelete = deleteBtn && deleteBtn.dataset.selfDelete === '1';
+        const confirmMessage = isSelfDelete
+            ? "Are you sure you want to permanently delete only your BIO account? This will log you out and cannot be undone."
+            : "Are you sure you want to permanently delete this resident/official account? This cannot be undone.";
+        if(!confirm(confirmMessage)) return;
+        const id = document.getElementById('e-id').value;
+        try {
+            const res = await fetch('/api/bio/member/' + id, {method: 'DELETE'});
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.success) {
+                alert(data.error || 'Unable to delete this account.');
+                return;
+            }
+            document.getElementById('edit-modal').style.display = 'none';
+            if (data.deleted_self && data.redirect_url) {
+                window.location.href = data.redirect_url;
+                return;
+            }
+            alert("Account deleted.");
+            window.MENTION_CANDIDATES = null;
+            loadMembers();
+        } catch (error) {
+            alert('Unable to delete this account right now.');
+        }
+    }
+
+    async function loadHistory() {
+        const res = await fetch('/api/history');
+        const data = await res.json();
+        let html = '';
+        data.forEach(h => {
+            html += `<div style="padding:15px; border-radius:8px; border-left:4px solid var(--primary); background:rgba(255,255,255,0.02); margin-bottom:10px;">
+                <p style="margin:0; font-size:15px;">${h.action}</p>
+                <small class="text-muted">${formatPhilippineDateTime(h.timestamp)}</small>
+            </div>`;
+        });
+        if(document.getElementById('history-box')) document.getElementById('history-box').innerHTML = html || '<p class="text-muted">No history logs yet.</p>';
+    }
+
+    async function loadEmgHistory() {
+        const historyBox = document.getElementById('emg-history-box');
+        if (historyBox) historyBox.innerHTML = '<p class="text-muted">Loading emergency history...</p>';
+
+        try {
+            const res = await fetch('/api/emergency/history', {
+                cache: 'no-store',
+                headers: { 'Cache-Control': 'no-cache' }
+            });
+            if (!res.ok) throw new Error('Unable to load emergency history.');
+
+            const payload = await res.json();
+            const data = Array.isArray(payload) ? payload : [];
+            let html = '';
+
+            data.forEach(e => {
+                html += `<div style="border:1px solid #555; padding:10px; border-radius:8px; margin-bottom:10px; background:rgba(255,255,255,0.05); opacity:0.8;">
+                    <strong>✅ RESOLVED: ${e.type.toUpperCase()} EMERGENCY</strong><br/>
+                    Reported By: <b>${e.reported_by_name}</b><br/>
+                    Time: ${formatPhilippineDateTime(e.timestamp)}<br/>
+                    <button class="btn btn-secondary" style="padding: 5px 10px; margin-top:10px;" onclick="viewEmergencyMap(${e.lat}, ${e.lng}, '${e.type}', '${e.reported_by_name.replace(/'/g, '\\\'')}')">View Historical Map</button>
+                </div>`;
+            });
+
+            if (historyBox) historyBox.innerHTML = html || 'No historical records.';
+        } catch (error) {
+            if (historyBox) historyBox.innerHTML = '<p class="text-danger">Unable to load emergency history right now.</p>';
+        }
+    }
+
+    setInterval(() => {
+        if (!window.MEMBERS_CACHE) return;
+        let needsRefresh = false;
+        window.MEMBERS_CACHE.forEach(m => {
+            if (m.is_banned && m.ban_remaining > 0) {
+                m.ban_remaining--;
+                needsRefresh = true;
+            } else if (m.is_banned && m.ban_remaining <= 0) {
+                m.is_banned = false;
+                needsRefresh = true;
+            }
+        });
+        if (needsRefresh) {
+            // Re-render only if directory is visible or simple re-render
+            const dir = document.getElementById('members-list');
+            if (dir && dir.offsetParent !== null) {
+                renderMembersList();
+            }
+        }
+    }, 1000);
+
+    function renderMembersList() {
+        let html = '';
+        window.MEMBERS_CACHE.forEach(m => {
+            let statusBadge = '';
+            if (!m.is_active) {
+                statusBadge = `<br><span style="color:#64748b; font-weight:800; font-size:10px;">⚪ DEACTIVATED</span>`;
+            } else if (m.is_banned) {
+                const h = Math.floor(m.ban_remaining / 3600);
+                const mm = Math.floor((m.ban_remaining % 3600) / 60);
+                const ss = m.ban_remaining % 60;
+                const timeStr = [h, mm, ss].map(v => v < 10 ? '0' + v : v).join(':');
+                statusBadge = `<br><span style="color:var(--danger); font-weight:800; font-size:11px;">🚫 BANNED: ${timeStr}</span>`;
+            }
+            const warnBtn = (m.role === 'resident') ? 
+                `<button class="btn btn-secondary btn-compact member-admin-btn member-admin-warn" style="padding:4px 8px; font-size:10px; background:var(--warning); color:black;" onclick="issueWarning(${m.id}, '${m.full_name.replace(/'/g, "\\'")}')">⚠️ Warn</button>` : '';
+
+            const toggleBtn = `<button class="btn btn-secondary btn-compact member-admin-btn member-admin-toggle" style="padding:4px 8px; font-size:10px; background:${m.is_active ? '#4ade80' : '#64748b'}; color:white;" onclick="toggleActive(${m.id})">${m.is_active ? 'Deactivate' : 'Activate'}</button>`;
+
+            html += `<div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; display:flex; align-items:center; position:relative; margin-bottom:10px;">
+                <img src="${m.pic_url || '/static/default-avatar.svg'}" style="width:40px;height:40px;border-radius:50%;margin-right:10px;object-fit:cover;">
+                <div style="flex:1;"><b>${m.role === 'official' ? m.full_name + ' (' + (m.position || 'Official') + ')' : m.full_name}</b><br><small style="color:var(--text-muted)">Role: ${m.role.toUpperCase()} | Class: ${m.class_type || 'N/A'}</small>${statusBadge}</div>
+                <div style="display:flex; flex-direction:column; gap:5px; align-items:flex-end;">
+                    <div style="display:flex; gap:5px;">
+                        ${warnBtn}
+                        <button class="btn btn-secondary btn-compact member-admin-btn member-admin-edit" style="padding:4px 8px; font-size:10px;" onclick="openEditModal(${m.id})">Edit</button>
+                    </div>
+                    ${toggleBtn}
+                </div>
+            </div>`;
+        });
+        document.getElementById('members-list').innerHTML = html;
+    }
+
+    window.calcRelief = async function() {
+        const budget = document.getElementById('r-budget').value;
+        if (!budget || parseFloat(budget) <= 0) return alert('Enter a valid budget first.');
+
+        window.RELIEF_CALC_ITERATION = (window.RELIEF_CALC_ITERATION || 0);
+        const iteration = window.RELIEF_CALC_ITERATION;
+        window.RELIEF_CALC_ITERATION += 1;
+
+        const res = await fetch('/api/relief/calculate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ budget, iteration })
+        });
+        const d = await res.json();
+        if (!res.ok || !d.success) {
+            alert(d.error || 'Unable to generate the AI distribution right now.');
+            return;
+        }
+
+        let h = `
+            <div style="padding:12px; border-radius:12px; background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.28); margin-bottom:12px; text-align:left;">
+                <strong style="display:block; color:var(--secondary);">${d.strategy?.label || 'AI Scenario'}</strong>
+                <small class="text-muted">Run #${d.strategy?.iteration || (iteration + 1)} · ${d.strategy?.focus || 'Dynamic barangay-based allocation strategy'}</small>
+                <p style="margin:10px 0 0; line-height:1.5;">${d.ai_summary || ''}</p>
+                <p style="margin:10px 0 0; line-height:1.5; color:rgba(255,255,255,0.88);">${d.ai_recommendation || ''}</p>
+            </div>
+            <ul style="padding-left:20px; text-align:left;">
+        `;
+        d.allocations.forEach(a => {
+            const amount = Number(a.allocated_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            h += `<li>Fam ID #${a.family_id}: â‚±${amount} (${a.allocation_percent || 0}%)<br/><small style="color:var(--text-muted);">${a.explanation || 'AI-calculated household need factors'}</small></li>`;
+        });
+        h += '</ul>';
+        if (!d.allocations || !d.allocations.length) {
+            h += '<p class="text-muted" style="text-align:left;">No family records were available in this barangay for the AI calculator.</p>';
+        }
+        document.getElementById('r-results').innerHTML = h;
+    };
+
+    window.calcRelief = async function() {
+        const budget = document.getElementById('r-budget').value;
+        if (!budget || parseFloat(budget) <= 0) return alert('Enter a valid budget first.');
+
+        window.RELIEF_CALC_ITERATION = (window.RELIEF_CALC_ITERATION || 0);
+        const iteration = window.RELIEF_CALC_ITERATION;
+        window.RELIEF_CALC_ITERATION += 1;
+
+        const res = await fetch('/api/relief/calculate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ budget, iteration })
+        });
+        const d = await res.json();
+        if (!res.ok || !d.success) {
+            alert(d.error || 'Unable to generate the AI distribution right now.');
+            return;
+        }
+
+        let h = `
+            <div style="padding:12px; border-radius:12px; background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.28); margin-bottom:12px; text-align:left;">
+                <strong style="display:block; color:var(--secondary);">${d.strategy?.label || 'AI Scenario'}</strong>
+                <small class="text-muted">Run #${d.strategy?.iteration || (iteration + 1)} - ${d.strategy?.focus || 'Randomized class-based allocation strategy'}</small>
+                <p style="margin:10px 0 0; line-height:1.5;">${d.ai_summary || ''}</p>
+                <p style="margin:10px 0 0; line-height:1.5; color:rgba(255,255,255,0.88);">${d.ai_recommendation || ''}</p>
+            </div>
+            <ul style="padding-left:20px; text-align:left;">
+        `;
+        d.allocations.forEach(a => {
+            const amount = Number(a.allocated_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            h += `<li>Fam ID #${a.family_id}: PHP ${amount} (${a.allocation_percent || 0}%)<br/><small style="color:var(--text-muted);">${a.explanation || 'AI-calculated class and household factors'}</small></li>`;
+        });
+        h += '</ul>';
+        if (!d.allocations || !d.allocations.length) {
+            h += '<p class="text-muted" style="text-align:left;">No family records were available in this barangay for the AI calculator.</p>';
+        }
+        document.getElementById('r-results').innerHTML = h;
+    };
+
+    loadBioHome();
+
+    let emgMap = null;
+    let emgMarker = null;
+
+    window.viewEmergencyMap = function(lat, lng, type, reporter) {
+        document.getElementById('emg-map-title').innerText = type.toUpperCase() + ' EMERGENCY';
+        document.getElementById('emg-map-subtitle').innerText = 'Reported By: ' + reporter;
+        document.getElementById('emg-map-modal').style.display = 'block';
+        
+        if(!emgMap) {
+            emgMap = L.map('emg-pin-map').setView([lat, lng], 18);
+            L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}',{maxZoom: 20, subdomains:['mt0','mt1','mt2','mt3']}).addTo(emgMap);
+            setTimeout(() => { emgMap.invalidateSize(); }, 300);
+        } else {
+            emgMap.setView([lat, lng], 18);
+            setTimeout(() => { emgMap.invalidateSize(); }, 300);
+        }
+        
+        if(emgMarker) emgMap.removeLayer(emgMarker);
+        
+        const pinHtml = '<div style="background:var(--danger); color:white; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px red;"><i class="fa-solid fa-triangle-exclamation" style="font-size:12px;"></i></div>';
+        const icon = L.divIcon({className: 'emg-pin-icon', html: pinHtml, iconSize: [24, 24], iconAnchor: [12, 12]});
+        emgMarker = L.marker([lat, lng], {icon: icon}).addTo(emgMap)
+            .bindPopup(`<b>${type.toUpperCase()}</b><br>Reporter: ${reporter}`).openPopup();
+    };
+
+    window.issueWarning = async (id, name) => {
+        if (!confirm(`Issue a formal warning to ${name}? This will trigger a temporary ban based on their warning history.`)) return;
+        const res = await fetch('/api/bio/member/warn', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id })
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert(`Warning issued to ${name}. Account is banned until ${formatPhilippineDateTime(data.banned_until)}.`);
+            loadMembers();
+        } else {
+            alert(data.error);
+        }
+    };
+
+    window.toggleActive = async (id) => {
+        const res = await fetch('/api/bio/member/toggle_active', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        const d = await res.json();
+        if(d.success) loadMembers();
+    };
+
+    let hotspotLayers = [];
+    let aiActiveType = null;
+
+    window.toggleAIHotspots = async function(type = null) {
+        const map = window.GLOBAL_MAP_INSTANCE;
+        if(!map) return alert("Map not ready.");
+
+        // Clear existing before switching
+        hotspotLayers.forEach(l => map.removeLayer(l));
+        hotspotLayers = [];
+
+        window.AI_ANALYSIS_ITERATIONS = window.AI_ANALYSIS_ITERATIONS || {};
+        const analysisKey = type || 'all';
+        const iteration = window.AI_ANALYSIS_ITERATIONS[analysisKey] || 0;
+        window.AI_ANALYSIS_ITERATIONS[analysisKey] = iteration + 1;
+
+        const url = type
+            ? `/api/emergency/analysis?type=${type}&iteration=${iteration}`
+            : `/api/emergency/analysis?iteration=${iteration}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        if(data.success) {
+            if (window.renderAiCommunityAnalysis) {
+                window.renderAiCommunityAnalysis(data);
+            } else {
+                document.getElementById('ai-insight-box').innerText = data.insight;
+                document.getElementById('ai-insight-box').style.display = 'block';
+            }
+            
+            data.hotspots.forEach(h => {
+                const circleColor = h.risk_level === 'critical' ? '#dc2626' : (h.risk_level === 'high' ? '#f97316' : '#facc15');
+                const purokLabel = h.purok && h.purok !== 'Unknown' ? `Purok ${h.purok}` : 'Mapped zone';
+                const householdsText = h.nearby_households ? `<br/>Nearby households: ${h.nearby_households}` : '';
+                const noteText = h.predictive_note ? `<br/>${h.predictive_note}` : '';
+                const validationText = h.validation_note ? `<br/><small>${h.validation_note}</small>` : '';
+                const circle = L.circle([h.lat, h.lng], {
+                    color: circleColor,
+                    weight: 3,
+                    opacity: 0.8,
+                    fillColor: circleColor,
+                    fillOpacity: 0.35,
+                    radius: h.radius,
+                    className: 'hotspot-circle'
+                }).addTo(map);
+                circle.bindPopup(`<b><i class="fa-solid fa-triangle-exclamation"></i> ${h.risk_label || 'Prone Area'} (${purokLabel})</b><br/>AI detected ${h.count} recurring report(s) here.${householdsText}${noteText}${validationText}`);
+                hotspotLayers.push(circle);
+            });
+            aiActiveType = type || 'all';
+        }
+    };
+</script>
+{% endblock %}

@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="dashboard-grid">
+    <div class="glass-card" style="grid-column: span 2;">
+        <h2>Superadmin Panel</h2>
+        <p class="text-muted">Master control. Review registered barangays and approve or decline pending BIO registrations.</p>
+        <hr style="border:0; border-top: 1px solid var(--card-border); margin: 20px 0;">
+
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:15px; flex-wrap:wrap;">
+            <div>
+                <h3 style="margin-bottom:6px;">Registered Barangays</h3>
+                <p class="text-muted" style="margin-top:0;">Click a barangay to view its residents, officials, posts, reports, and other records.</p>
+            </div>
+            <button class="btn btn-secondary" onclick="loadBarangays()">Refresh Barangays</button>
+        </div>
+        <div id="barangay-list" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-top:15px;"></div>
+        <div id="barangay-details" style="margin-top:16px;"></div>
+
+        <hr style="border:0; border-top: 1px solid var(--card-border); margin: 28px 0 20px;">
+
+        <h3>Pending BIO Applications</h3>
+        <button class="btn btn-warning" onclick="loadBios()">Refresh List</button>
+        <div id="bio-list" style="margin-top: 15px;"></div>
+    </div>
+</div>
+
+<script>
+    let barangaysCache = [];
+    let selectedBarangayIndex = null;
+
+    const barangayMetrics = [
+        ['residents', 'Residents'],
+        ['officials', 'Officials'],
+        ['bios', 'Approved BIOs'],
+        ['pending_bios', 'Pending BIOs'],
+        ['posts', 'Posts'],
+        ['reports', 'All Reports'],
+        ['incident_reports', 'Incident Reports'],
+        ['health_reports', 'Health Reports'],
+        ['announcements', 'Announcements'],
+        ['events', 'Events'],
+        ['financial_reports', 'Financial Reports'],
+        ['summons', 'Summons'],
+        ['ratings', 'Ratings'],
+        ['other_records', 'Others'],
+        ['total_members', 'Total Members']
+    ];
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, char => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[char]));
+    }
+
+    async function loadBarangays() {
+        const list = document.getElementById('barangay-list');
+        const details = document.getElementById('barangay-details');
+        list.innerHTML = '<span class="text-muted">Loading registered barangays...</span>';
+        details.innerHTML = '';
+
+        const res = await fetch('/api/superadmin/barangays');
+        barangaysCache = await res.json();
+        selectedBarangayIndex = null;
+        renderBarangayList();
+    }
+
+    function renderBarangayList() {
+        const list = document.getElementById('barangay-list');
+        if (!barangaysCache.length) {
+            list.innerHTML = '<div class="text-muted">No registered barangays yet.</div>';
+            document.getElementById('barangay-details').innerHTML = '';
+            return;
+        }
+
+        list.innerHTML = barangaysCache.map((barangay, index) => {
+            const selected = selectedBarangayIndex === index;
+            return `<button type="button" onclick="selectBarangay(${index})" style="text-align:left; cursor:pointer; border:1px solid ${selected ? 'var(--primary)' : 'var(--card-border)'}; background:${selected ? 'rgba(59, 130, 246, 0.18)' : 'rgba(15, 23, 42, 0.45)'}; color:var(--text-main); border-radius:16px; padding:16px; box-shadow:${selected ? '0 0 0 2px rgba(59, 130, 246, 0.18)' : 'none'};">
+                <div style="display:flex; justify-content:space-between; gap:10px; align-items:flex-start;">
+                    <strong style="font-size:1.05rem;">${escapeHtml(barangay.name)}</strong>
+                    <span style="font-size:0.72rem; color:${barangay.status === 'Controlled' ? 'var(--success)' : 'var(--warning)'}; font-weight:800;">${escapeHtml(barangay.status)}</span>
+                </div>
+                <div class="text-muted" style="margin-top:10px; font-size:0.9rem;">
+                    ${barangay.total_members} members | ${barangay.posts} posts | ${barangay.reports} reports
+                </div>
+            </button>`;
+        }).join('');
+    }
+
+    function selectBarangay(index) {
+        selectedBarangayIndex = index;
+        renderBarangayList();
+        renderBarangayDetails(barangaysCache[index]);
+    }
+
+    function renderBarangayDetails(barangay) {
+        if (!barangay) return;
+
+        const metricCards = barangayMetrics.map(([key, label]) => `
+            <div style="border:1px solid var(--card-border); border-radius:14px; padding:14px; background:rgba(15, 23, 42, 0.35);">
+                <div class="text-muted" style="font-size:0.82rem;">${label}</div>
+                <strong style="font-size:1.45rem;">${barangay[key] ?? 0}</strong>
+            </div>
+        `).join('');
+
+        document.getElementById('barangay-details').innerHTML = `
+            <div style="border:1px solid var(--primary); border-radius:18px; padding:18px; background:rgba(59, 130, 246, 0.08);">
+                <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
+                    <div>
+                        <h3 style="margin:0;">${escapeHtml(barangay.name)}</h3>
+                        <p class="text-muted" style="margin:5px 0 0;">Barangay records summary</p>
+                    </div>
+                    <strong style="color:${barangay.status === 'Controlled' ? 'var(--success)' : 'var(--warning)'};">${escapeHtml(barangay.status)}</strong>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px;">
+                    ${metricCards}
+                </div>
+            </div>
+        `;
+    }
+
+    async function loadBios() {
+        const res = await fetch('/api/superadmin/bios');
+        const data = await res.json();
+        let html = '';
+        data.forEach(b => {
+            html += `<div style="border:1px solid var(--primary); padding:10px; border-radius:8px; margin-bottom:10px; background:rgba(59, 130, 246, 0.1);">
+                <strong>Name:</strong> ${b.full_name} <br/>
+                <strong>Username:</strong> ${b.username} <br/>
+                <strong>Barangay:</strong> ${b.barangay_name || 'N/A'} <br/>
+                <button class="btn btn-primary" style="margin-top:10px; padding: 5px 10px;" onclick="actionBio(${b.id}, 'approve')">Approve</button>
+                <button class="btn btn-danger" style="margin-top:10px; padding: 5px 10px;" onclick="actionBio(${b.id}, 'reject')">Reject</button>
+            </div>`;
+        });
+        document.getElementById('bio-list').innerHTML = html || 'No pending BIOs.';
+    }
+
+    async function actionBio(id, action) {
+        if (!confirm(`Are you sure you want to ${action} this BIO?`)) return;
+        await fetch('/api/superadmin/bios', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, action })
+        });
+        loadBios();
+        loadBarangays();
+    }
+
+    loadBarangays();
+    loadBios();
+</script>
+{% endblock %}
